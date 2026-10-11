@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+/* Native date/time inputs are the fastest path to a correct deadline on both
+   desktop and phones, so they are styled rather than replaced. */
+input[type="datetime-local"],
+input[type="time"] {
+  @apply appearance-none;
+}

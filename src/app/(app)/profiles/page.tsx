@@ -1,0 +1,52 @@
+import { redirect } from "next/navigation";
+
+import ProfileEditor from "@/components/ProfileEditor";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+
+export default async function ProfilesPage() {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) redirect("/login");
+
+  const profiles = await prisma.profile.findMany({
+    where: { userId },
+    include: {
+      windows: { orderBy: [{ dayOfWeek: "asc" }, { startMinute: "asc" }] },
+      _count: { select: { tasks: true } },
+    },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Your hours</h1>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-600">
+          A task tagged with a set of hours is only ever placed inside them.
+          Keep study time out of your shift, and your shift out of your evening.
+        </p>
+      </div>
+
+      <ProfileEditor
+        profiles={profiles.map((profile) => ({
+          id: profile.id,
+          name: profile.name,
+          color: profile.color,
+          bufferMinutes: profile.bufferMinutes,
+          defaultMinBlockMinutes: profile.defaultMinBlockMinutes,
+          defaultMaxBlockMinutes: profile.defaultMaxBlockMinutes,
+          isDefault: profile.isDefault,
+          taskCount: profile._count.tasks,
+          windows: profile.windows.map((w) => ({
+            dayOfWeek: w.dayOfWeek,
+            startMinute: w.startMinute,
+            endMinute: w.endMinute,
+          })),
+        }))}
+      />
+    </div>
+  );
+}
