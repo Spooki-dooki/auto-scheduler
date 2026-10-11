@@ -12,10 +12,10 @@ import {
   updateBlockEvent,
 } from "@/lib/google";
 import { buildProfileAvailability, type ProfileSpec } from "@/lib/scheduler/availability";
+import { splitAtNow, startedMinutes } from "@/lib/scheduler/history";
 import { subtract } from "@/lib/scheduler/intervals";
 import { placeTasks } from "@/lib/scheduler/place";
 import {
-  msToMinutes,
   type Interval,
   type PlacementTask,
   type PlannedBlock,
@@ -91,11 +91,11 @@ export async function runScheduler(userId: string): Promise<RunSummary> {
     user.timeZone,
   );
 
-  // ...minus our own blocks, which are the very thing we are re-placing.
+  // ...minus our own blocks that have not started, which are the very thing we
+  // are re-placing. A block already running stays busy.
   const ownFutureBlocks: Interval[] = tasks.flatMap((task) =>
-    task.blocks
-      .filter((block) => block.end.getTime() > nowMs)
-      .map((block) => ({
+    splitAtNow(task.blocks, nowMs)
+      .upcoming.map((block) => ({
         start: block.start.getTime(),
         end: block.end.getTime(),
       })),
@@ -125,13 +125,7 @@ export async function runScheduler(userId: string): Promise<RunSummary> {
   const placementTasks: PlacementTask[] = [];
 
   for (const task of tasks) {
-    const elapsedMinutes = task.blocks
-      .filter((block) => block.start.getTime() <= nowMs)
-      .reduce(
-        (sum, block) =>
-          sum + msToMinutes(block.end.getTime() - block.start.getTime()),
-        0,
-      );
+    const elapsedMinutes = startedMinutes(task.blocks, nowMs);
 
     const remaining = Math.max(0, task.durationMinutes - elapsedMinutes);
     remainingByTask.set(task.id, remaining);
@@ -292,9 +286,11 @@ type SyncInput = {
 async function syncTaskBlocks(input: SyncInput) {
   const { calendar, calendarId, timeZone, nowMs, task, planned, liveEvents } = input;
 
-  const existing = task.blocks
-    .filter((block) => block.end.getTime() > nowMs)
-    .sort((a, b) => a.start.getTime() - b.start.getTime());
+  // Only blocks that have not started are paired with the new plan; a block
+  // already running is left exactly where it is.
+  const existing = splitAtNow(task.blocks, nowMs).upcoming.sort(
+    (a, b) => a.start.getTime() - b.start.getTime(),
+  );
 
   const wanted = [...planned].sort((a, b) => a.start - b.start);
 
