@@ -1,0 +1,25 @@
+screenshot 01-landing-phone.png horizontalOverflowPx=0
+screenshot 01-landing-desktop.png horizontalOverflowPx=0
+screenshot 02-login-phone.png horizontalOverflowPx=0
+screenshot 02-login-desktop.png horizontalOverflowPx=0
+POST /api/profiles Study -> 201
+POST /api/profiles Classes -> 201
+POST /api/profiles Job -> 201
+POST /api/profiles Personal -> 201
+screenshot 03-dashboard-empty-phone.png horizontalOverflowPx=0
+screenshot 03-dashboard-empty-desktop.png horizontalOverflowPx=0
+UI add-task: task appeared in list
+GET /api/tasks -> 1 task(s), status=PENDING, blocks=0
+screenshot 04-dashboard-one-task-no-calendar-phone.png horizontalOverflowPx=0
+screenshot 04-dashboard-one-task-no-calendar-desktop.png horizontalOverflowPx=0
+POST /api/tasks invalid -> 422 {"error":"Invalid input","issues":{"title":["Give the task a name"],"deadline":["Not a valid date"],"durationMinutes":["Number must be greater than or equal to 
+UI complete: task moved to Done
+screenshot 05-dashboard-task-done-phone.png horizontalOverflowPx=0
+screenshot 05-dashboard-task-done-desktop.png horizontalOverflowPx=0
+screenshot 06-hours-phone.png horizontalOverflowPx=0
+screenshot 06-hours-desktop.png horizontalOverflowPx=0
+screenshot 07-settings-phone.png horizontalOverflowPx=0
+screenshot 07-settings-desktop.png horizontalOverflowPx=0
+POST /api/schedule without Google -> 409 {"error":"This account has no Google Calendar connected.","code":"google_not_connected"}
+dark-mode request: body background = oklch(0.984 0.003 247.858)
+console errors: none
