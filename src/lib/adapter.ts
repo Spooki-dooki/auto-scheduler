@@ -14,7 +14,9 @@ export function encryptedPrismaAdapter(prisma: PrismaClient): Adapter {
 
   return {
     ...base,
-    async linkAccount(account: AdapterAccount) {
+    // Not `async`: returning the base call directly keeps its exact return
+    // type, which an async wrapper would widen into a type Auth.js rejects.
+    linkAccount(account: AdapterAccount) {
       const encrypted = {
         ...account,
         access_token: encryptNullable(account.access_token),
