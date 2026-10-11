@@ -16,12 +16,14 @@ export const maxDuration = 300;
  * conflicting task blocks move out of the way.
  */
 export async function GET(request: Request) {
+  // Fail closed: without a configured secret this endpoint would let anyone
+  // trigger a full re-plan for every user.
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const header = request.headers.get("authorization");
-    if (header !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  if (!secret) {
+    return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 503 });
+  }
+  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const users = await prisma.user.findMany({
