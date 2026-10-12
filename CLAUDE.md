@@ -75,16 +75,17 @@ A change is **not done** until all applicable items below are true and *evidence
 
 Since Justin can't look at everything, you must.
 
-- **Web:** run the app and use Playwright to capture screenshots of every screen at 390px and desktop widths, in dark and light mode, including empty/loading/error states. Actually inspect them and fix what looks off (spacing, alignment, contrast, truncation, jank). Save to `docs/screens/` with the date.
+- **Web:** run the app and use Playwright to capture screenshots of every screen at 390px and desktop widths, in both themes (Calm and Momentum), including empty/loading/error states. Actually inspect them and fix what looks off (spacing, alignment, contrast, truncation, jank). Save to `docs/screens/` with the date.
 - **Mobile:** if a simulator or device is available, capture screenshots the same way. If not (no Xcode / no device), say so under "Not verified" and rely on the web-rendered React Native Web preview plus typecheck and bundle export, clearly labeled as a partial substitute.
 - Before calling any UI done, do one deliberate pass asking: *would this feel at home next to Things 3 or Linear? What would a design-conscious person wince at?* Fix those things.
-- If a `frontend-design` skill is available, use it before building or reshaping any screen.
+- **Design skill (required for all UI work):** this repo ships the Impeccable design skill in `.claude/skills/impeccable/`. Before building or reshaping any screen, invoke it (`/impeccable shape` to plan a new screen, then build; `/impeccable polish`, `layout`, `typeset` and the other commands for refinements) and follow its setup: run its `context` step, which loads `PRODUCT.md` and `DESIGN.md`, and read its `craft-floor.md` before any UI edit. Before calling a screen done, run `/impeccable critique` and `/impeccable audit` on it, fix what they find in one batch, and note the results in `REVIEW.md`. If its launcher can't run here, say so in the report and read `PRODUCT.md` and `DESIGN.md` directly.
+- **Both themes, every time:** every screen is built and screenshotted in both the Calm and Momentum themes (see `DESIGN.md`).
 
 ## 6. Design and copy rules
 
-Full direction is in brief section 8. Non-negotiables:
+`DESIGN.md` (repo root) is the visual authority: the two themes, tokens, components and the voice lines that change per theme. `PRODUCT.md` is the product truth the design skill reads. Brief section 8 is background. Non-negotiables:
 
-- Dark mode first, one strong accent, real type hierarchy, restraint and whitespace.
+- Dark first (light mode is an open decision), two switchable themes with one accent each, real type hierarchy, restraint and whitespace.
 - None of: default purple-to-blue gradients, generic white rounded cards with soft shadows, stock emoji as icons, gratuitous glassmorphism, same hero-plus-big-button on every screen.
 - Motion and haptics only where they mean something (completing a block, plan appearing, gate countdown).
 - Centralize design tokens (color, type, spacing, radius, motion) in one place. No magic numbers in components.

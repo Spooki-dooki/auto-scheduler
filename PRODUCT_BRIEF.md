@@ -111,6 +111,8 @@ Seeds worth serious consideration:
 
 ## 8. Design direction. "Apple-grade" is the bar
 
+**`DESIGN.md` at the repo root is now the visual authority** (two switchable themes, Calm and Momentum). This section is the original background.
+
 - **Reference quality:** Things 3, Linear, Opal, Apple's own apps, Arc. Study how they feel, not just how they look.
 - **Dark first**, light mode supported. One strong accent color, used deliberately. Real typographic hierarchy (pick a distinctive heading face with a native-feeling body; justify the choice in `docs/design-notes.md`).
 - **Native feel:** follow iOS Human Interface Guidelines. Correct safe areas, back-swipe, 44pt touch targets, Dynamic Type, VoiceOver labels, Reduce Motion respected.
@@ -168,6 +170,7 @@ Record each in `docs/DECISIONS.md` with the options considered and why you chose
 | Phase | Goal | Exit criteria |
 |---|---|---|
 | 0 | Verify what exists | Both repos install, typecheck, and run. Written audit of what works vs. what was never run. |
+| 0.5 | Design system + theme switch | Tokens for both themes from `DESIGN.md` in code (one source per app), Settings → Appearance switch working, every existing screen restyled in both themes, Impeccable critique/audit run and fixed, screenshots of every screen in both themes. |
 | 1 | Planner core (web) | Google Calendar connect, task in → scheduled event out, auto-reschedule, tested algorithm, screenshots of every screen. |
 | 2 | First-run + Expo client | 60-second first-run flow works end to end, Today screen on phone reads the real schedule, offline-safe. |
 | 3 | Focus layer on top | Windows, friction gate, tracker, identity, wired to scheduled blocks. Honest Level 1 messaging. |
