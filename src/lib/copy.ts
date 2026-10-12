@@ -25,7 +25,28 @@ export const appearanceCopy = {
     greeting: { calm: "Good afternoon.", momentum: "Thu 15 Oct" },
     label: "Now",
     block: "Bio 201 lab report",
-    context: "3:00 – 4:30 PM · 38 minutes left",
-    done: "Done",
+    context: "3:00 – 4:30 PM",
+    minutesLeft: 38,
   },
+} as const;
+
+/**
+ * Scheduling works with or without a calendar: tasks go into the user's own
+ * hours straight away. A calendar only lets the planner avoid what's already
+ * on it. Every surface tells that one story (src/tests/copy.test.ts).
+ */
+export const connectCalendarLine = {
+  action: "Connect your calendar",
+  rest: "so I can avoid your classes and events.",
+} as const;
+
+export const scheduleCopy = {
+  nowEmpty: {
+    title: "Nothing planned right now.",
+    body: "Add something and it goes into your next free hour.",
+  },
+  weekEmpty: "Nothing planned this week yet.",
+  dayEmpty: "Nothing planned",
+  tasksEmpty: "No tasks yet.",
+  addPlaceholder: "Add something…",
 } as const;

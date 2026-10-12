@@ -6,7 +6,8 @@ import { useState, useTransition } from "react";
 
 import { Button, Notice } from "@/components/ui";
 
-export default function RescheduleButton({ disabled }: { disabled?: boolean }) {
+/** Re-plans the week. Works with or without a calendar connected. */
+export default function RescheduleButton() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -32,16 +33,15 @@ export default function RescheduleButton({ disabled }: { disabled?: boolean }) {
 
   return (
     <div className="flex flex-col items-start gap-2 sm:items-end">
-      <Button
-        variant="secondary"
-        onClick={reschedule}
-        disabled={disabled || busy || isPending}
-        disabledLabel={disabled ? "Re-plan needs a calendar" : undefined}
-      >
+      <Button variant="secondary" onClick={reschedule} disabled={busy || isPending}>
         <RefreshCw aria-hidden className="size-4" strokeWidth={1.75} />
         {busy || isPending ? "Re-planning…" : "Re-plan now"}
       </Button>
-      {error ? <Notice icon={<AlertCircle className="size-4" />}>{error}</Notice> : null}
+      {error ? (
+        <Notice tone="error" icon={<AlertCircle className="size-4" />}>
+          {error}
+        </Notice>
+      ) : null}
     </div>
   );
 }

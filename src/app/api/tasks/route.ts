@@ -45,10 +45,18 @@ export async function POST(request: Request) {
     });
 
     // Placing it immediately is the whole promise of the product: enter a task,
-    // see it land on the calendar.
+    // see where it landed. Works with or without a calendar connected.
     const summary = await tryRunScheduler(userId);
 
-    return NextResponse.json({ task, summary }, { status: 201 });
+    const firstBlock = await prisma.taskBlock.findFirst({
+      where: { taskId: task.id, end: { gt: new Date() } },
+      orderBy: { start: "asc" },
+      select: { start: true, end: true },
+    });
+    const shortfallMinutes =
+      summary?.shortfalls.find((s) => s.taskId === task.id)?.missingMinutes ?? 0;
+
+    return NextResponse.json({ task, summary, firstBlock, shortfallMinutes }, { status: 201 });
   } catch (error) {
     return errorResponse(error);
   }

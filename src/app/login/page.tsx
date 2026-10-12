@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Button, buttonClass, inputClass } from "@/components/ui";
@@ -5,6 +7,8 @@ import { auth, signIn } from "@/lib/auth";
 import { APP_NAME } from "@/lib/copy";
 
 const emailEnabled = Boolean(process.env.AUTH_RESEND_KEY);
+
+export const metadata: Metadata = { title: "Sign in" };
 
 export default async function LoginPage() {
   const session = await auth();
@@ -25,11 +29,16 @@ export default async function LoginPage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-gutter py-16">
-      <p className="t-heading text-text">{APP_NAME}</p>
-      <h1 className="mt-10 t-title text-text">Sign in</h1>
+      <Link href="/" className="-ml-1 inline-flex min-h-touch items-center self-start rounded-control px-1 t-heading text-text">
+        {APP_NAME}
+      </Link>
+      <h1 className="mt-8 t-title text-text">Sign in</h1>
       <p className="mt-3 t-body text-soft">
-        Signing in with Google also connects the calendar the planner writes to. One step, not
-        two.
+        Signing in with Google also connects your calendar, so your plan works around your
+        classes and events. One step, not two.
+      </p>
+      <p className="mt-3 t-small text-soft">
+        It only adds and moves its own blocks. It never changes or deletes your events.
       </p>
 
       <form action={signInWithGoogle} className="mt-8">
@@ -47,7 +56,7 @@ export default async function LoginPage() {
           </div>
 
           <form action={signInWithEmail} className="space-y-3">
-            <label htmlFor="email" className="sr-only">
+            <label htmlFor="email" className="mb-2 block t-small text-soft">
               Email
             </label>
             <input
@@ -64,8 +73,8 @@ export default async function LoginPage() {
             </button>
           </form>
           <p className="mt-3 t-small text-soft">
-            Email sign-in gets you an account, but scheduling needs a calendar. You&apos;ll be
-            asked to connect Google afterwards.
+            With email, your tasks are planned into your own hours. You can connect a calendar
+            later so it avoids your classes and events.
           </p>
         </>
       ) : null}
