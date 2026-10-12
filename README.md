@@ -9,10 +9,16 @@ This is the planner and the shared backend for **Achieve It**. The phone app
 lives in the separate `achieve-it` repo. Product direction is in
 `PRODUCT_BRIEF.md`; how work is done is in `CLAUDE.md`.
 
-## Where things stand (Phase 0, 2026-10-11)
+## Where things stand (Phase 0.5, 2026-10-12)
 
-- **Works and was checked:** installs, type-checks, lints, 34 tests pass,
+- **New:** two looks, **Calm** (default, warm and soft) and **Momentum**
+  (black, white, one bold color), shared with the phone app. Switch in
+  **Settings, Appearance**; it changes instantly and is saved to your
+  account. Every page was redesigned for both, following `DESIGN.md`.
+- **Works and was checked:** installs, type-checks, lints, 60 tests pass,
   builds, and runs against a database. Adding and completing tasks works.
+  Every page was looked at in both looks at phone and desktop widths
+  (`docs/screens/2026-10-12-phase05-themes/`).
 - **Never run yet:** Google sign-in, reading your calendar, and writing
   blocks to it. Those need Google credentials that are not set up yet.
 - Full details: `docs/AUDIT.md`. Latest session report: `REVIEW.md`.
@@ -66,6 +72,10 @@ Never commit `.env.local`; it is ignored by git on purpose.
 | `npm run typecheck` | Check the TypeScript types |
 | `npm run lint` | Check code style and common mistakes (fails on any warning) |
 | `npm run build` | Make a production build |
+| `npx prisma db push` | Apply the database schema (Phase 0.5 added one optional column, `User.appearance`) |
+| `node --env-file=.env.local scripts/seed-preview.mjs` | Fill a **local** database with two sample accounts for screenshots (refuses any non-local database) |
+| `node scripts/screenshots.mjs` | Screenshots of every page in both looks (see the top of the file) |
+| `node scripts/check-appearance.mjs` | Clicks through Settings, Appearance and checks the switch is instant, saved and remembered |
 
 ## How the scheduler works
 
@@ -110,7 +120,8 @@ sign in, which is fine for a first group of classmates.
 
 ```
 src/app/            pages and API routes (Next.js App Router)
-src/components/     screen pieces (task form, week view, ...)
+src/components/     screen pieces (task form, week view, ...); ui.tsx is the shared kit
+src/lib/theme/      the two looks: tokens.ts (same as the phone app's) -> CSS variables
 src/lib/scheduler/  the scheduling logic (pure, tested) and the Google sync
 src/lib/            auth, Google, encryption, validation, database
 src/tests/          automated tests
