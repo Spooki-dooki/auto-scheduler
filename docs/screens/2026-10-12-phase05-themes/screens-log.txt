@@ -1,0 +1,60 @@
+calm-w375-01-landing.png overflowPx=0
+calm-w375-02-sign-in.png overflowPx=0
+calm-w375-03-schedule.png overflowPx=0
+calm-w375-03b-schedule-adding.png overflowPx=0
+calm-w375-04-schedule-new-account.png overflowPx=0
+calm-w375-04b-schedule-no-calendar-planned.png overflowPx=0
+calm-w375-05-hours.png overflowPx=0
+calm-w375-05b-hours-day-open.png overflowPx=0
+calm-w375-05c-hours-unsaved.png overflowPx=0
+calm-w375-06-settings.png overflowPx=0 errors=["Failed to load resource: the server responded with a status of 409 (Conflict)"]
+calm-w430-01-landing.png overflowPx=0
+calm-w430-02-sign-in.png overflowPx=0
+calm-w430-03-schedule.png overflowPx=0
+calm-w430-03b-schedule-adding.png overflowPx=0
+calm-w430-04-schedule-new-account.png overflowPx=0
+calm-w430-04b-schedule-no-calendar-planned.png overflowPx=0
+calm-w430-05-hours.png overflowPx=0
+calm-w430-05b-hours-day-open.png overflowPx=0
+calm-w430-05c-hours-unsaved.png overflowPx=0
+calm-w430-06-settings.png overflowPx=0 errors=["Failed to load resource: the server responded with a status of 409 (Conflict)"]
+calm-w1280-01-landing.png overflowPx=0
+calm-w1280-02-sign-in.png overflowPx=0
+calm-w1280-03-schedule.png overflowPx=0
+calm-w1280-03b-schedule-adding.png overflowPx=0
+calm-w1280-04-schedule-new-account.png overflowPx=0
+calm-w1280-04b-schedule-no-calendar-planned.png overflowPx=0
+calm-w1280-05-hours.png overflowPx=0
+calm-w1280-05b-hours-day-open.png overflowPx=0
+calm-w1280-05c-hours-unsaved.png overflowPx=0
+calm-w1280-06-settings.png overflowPx=0 errors=["Failed to load resource: the server responded with a status of 409 (Conflict)"]
+momentum-w375-01-landing.png overflowPx=0
+momentum-w375-02-sign-in.png overflowPx=0
+momentum-w375-03-schedule.png overflowPx=0
+momentum-w375-03b-schedule-adding.png overflowPx=0
+momentum-w375-04-schedule-new-account.png overflowPx=0
+momentum-w375-04b-schedule-no-calendar-planned.png overflowPx=0
+momentum-w375-05-hours.png overflowPx=0
+momentum-w375-05b-hours-day-open.png overflowPx=0
+momentum-w375-05c-hours-unsaved.png overflowPx=0
+momentum-w375-06-settings.png overflowPx=0 errors=["Failed to load resource: the server responded with a status of 409 (Conflict)"]
+momentum-w430-01-landing.png overflowPx=0
+momentum-w430-02-sign-in.png overflowPx=0
+momentum-w430-03-schedule.png overflowPx=0
+momentum-w430-03b-schedule-adding.png overflowPx=0
+momentum-w430-04-schedule-new-account.png overflowPx=0
+momentum-w430-04b-schedule-no-calendar-planned.png overflowPx=0
+momentum-w430-05-hours.png overflowPx=0
+momentum-w430-05b-hours-day-open.png overflowPx=0
+momentum-w430-05c-hours-unsaved.png overflowPx=0
+momentum-w430-06-settings.png overflowPx=0 errors=["Failed to load resource: the server responded with a status of 409 (Conflict)"]
+momentum-w1280-01-landing.png overflowPx=0
+momentum-w1280-02-sign-in.png overflowPx=0
+momentum-w1280-03-schedule.png overflowPx=0
+momentum-w1280-03b-schedule-adding.png overflowPx=0
+momentum-w1280-04-schedule-new-account.png overflowPx=0
+momentum-w1280-04b-schedule-no-calendar-planned.png overflowPx=0
+momentum-w1280-05-hours.png overflowPx=0
+momentum-w1280-05b-hours-day-open.png overflowPx=0
+momentum-w1280-05c-hours-unsaved.png overflowPx=0
+momentum-w1280-06-settings.png overflowPx=0 errors=["Failed to load resource: the server responded with a status of 409 (Conflict)"]

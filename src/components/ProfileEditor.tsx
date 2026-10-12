@@ -1,9 +1,11 @@
 "use client";
 
+import { AlertCircle, Check, ChevronDown, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { DAY_NAMES, labelToMinutes, minutesToLabel } from "@/lib/format";
+import { Button, Label, Notice, Surface, Tag, cx, inputBase, inputClass } from "@/components/ui";
+import { DAY_NAMES, DAY_SHORT, formatClock, labelToMinutes, minutesToLabel } from "@/lib/format";
 
 type WindowRow = { dayOfWeek: number; startMinute: number; endMinute: number };
 
@@ -19,8 +21,22 @@ type ProfileRow = {
   windows: WindowRow[];
 };
 
-const field =
-  "rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
+const DAYS = [1, 2, 3, 4, 5, 6, 7];
+const LAST_MINUTE = 23 * 60 + 59;
+
+const byTime = (a: WindowRow, b: WindowRow) =>
+  a.dayOfWeek - b.dayOfWeek || a.startMinute - b.startMinute || a.endMinute - b.endMinute;
+const sameWindows = (a: WindowRow[], b: WindowRow[]) =>
+  JSON.stringify([...a].sort(byTime)) === JSON.stringify([...b].sort(byTime));
+
+/** "9:00 AM – 5:00 PM", "9:00 AM – 12:00 PM, 1:00 PM – 5:00 PM", or "Off". */
+function daySummary(windows: WindowRow[]): string {
+  if (windows.length === 0) return "Off";
+  return [...windows]
+    .sort(byTime)
+    .map((w) => `${formatClock(w.startMinute)} – ${formatClock(w.endMinute)}`)
+    .join(", ");
+}
 
 export default function ProfileEditor({ profiles }: { profiles: ProfileRow[] }) {
   const router = useRouter();
@@ -49,13 +65,13 @@ export default function ProfileEditor({ profiles }: { profiles: ProfileRow[] }) 
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? "Could not create that");
+        throw new Error(body.error ?? "Couldn't create that. Try again.");
       }
 
       setNewName("");
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not create that");
+      setError(cause instanceof Error ? cause.message : "Couldn't create that. Try again.");
     } finally {
       setCreating(false);
     }
@@ -69,33 +85,31 @@ export default function ProfileEditor({ profiles }: { profiles: ProfileRow[] }) 
 
       <form
         onSubmit={createProfile}
-        className="flex flex-wrap items-end gap-3 rounded-xl border border-dashed border-slate-300 p-4"
+        className="flex flex-wrap items-end gap-3 rounded-tile border border-dashed border-line p-4"
       >
-        <div className="flex-1">
-          <label
-            className="block text-xs font-medium uppercase tracking-wide text-slate-500"
-            htmlFor="new-profile"
-          >
-            New set of hours
-          </label>
+        <div className="min-w-[min(12rem,100%)] flex-1">
+          <Label htmlFor="new-profile">New set of hours</Label>
           <input
             id="new-profile"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             required
             maxLength={60}
-            placeholder="Gym, Volunteering, Side project…"
-            className={`${field} mt-1 w-full`}
+            placeholder="Gym, volunteering, side project…"
+            className={inputClass}
           />
         </div>
-        <button
-          type="submit"
-          disabled={creating}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
-        >
+        <Button type="submit" variant="secondary" disabled={creating}>
+          <Plus aria-hidden className="size-4" />
           Create
-        </button>
-        {error ? <p className="w-full text-xs text-red-600">{error}</p> : null}
+        </Button>
+        {error ? (
+          <div className="w-full">
+            <Notice tone="error" icon={<AlertCircle className="size-4" />}>
+              {error}
+            </Notice>
+          </div>
+        ) : null}
       </form>
     </div>
   );
@@ -108,15 +122,90 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
   const [color, setColor] = useState(profile.color);
   const [bufferMinutes, setBufferMinutes] = useState(profile.bufferMinutes);
   const [windows, setWindows] = useState<WindowRow[]>(profile.windows);
+  const [openDay, setOpenDay] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const saveBar = useRef<HTMLDivElement>(null);
 
-  function updateWindow(index: number, patch: Partial<WindowRow>) {
-    setWindows((rows) =>
-      rows.map((row, i) => (i === index ? { ...row, ...patch } : row)),
-    );
-    setSaved(false);
+  const dirty =
+    name !== profile.name ||
+    color !== profile.color ||
+    bufferMinutes !== profile.bufferMinutes ||
+    !sameWindows(windows, profile.windows);
+
+  // Leaving with unsaved hours asks first: closing or reloading the tab, or
+  // following any link inside the app (the tab bar, the sidebar).
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    const guard = (event: MouseEvent) => {
+      const link = (event.target as Element | null)?.closest?.("a[href]");
+      const href = link?.getAttribute("href") ?? "";
+      if (!link || href.startsWith("#") || link.getAttribute("target") === "_blank") return;
+      if (!window.confirm(`Leave without saving your changes to ${profile.name}?`)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", warn);
+    document.addEventListener("click", guard, true);
+    // The save bar now sticks to the bottom: keep focused rows above it, by
+    // its real height (it can grow with large text).
+    const root = document.documentElement.style;
+    const bar = saveBar.current;
+    const measure = () =>
+      root.setProperty("--savebar-clearance", `${(bar?.offsetHeight ?? 0) + 16}px`);
+    measure();
+    const resize = new ResizeObserver(measure);
+    if (bar) resize.observe(bar);
+    return () => {
+      resize.disconnect();
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", guard, true);
+      root.removeProperty("--savebar-clearance");
+    };
+  }, [dirty, profile.name]);
+
+  function edit<T>(set: (value: T) => void) {
+    return (value: T) => {
+      set(value);
+      setJustSaved(false);
+    };
+  }
+
+  function updateWindow(target: WindowRow, patch: Partial<WindowRow>) {
+    setWindows((rows) => rows.map((row) => (row === target ? { ...row, ...patch } : row)));
+    setJustSaved(false);
+  }
+
+  function removeWindow(target: WindowRow, day: number) {
+    setWindows((rows) => rows.filter((row) => row !== target));
+    setJustSaved(false);
+    // The button just removed itself; keep keyboard focus in the same day.
+    requestAnimationFrame(() => document.getElementById(`add-${profile.id}-${day}`)?.focus());
+  }
+
+  function addWindow(dayOfWeek: number) {
+    setWindows((rows) => {
+      const sameDay = rows.filter((row) => row.dayOfWeek === dayOfWeek).sort(byTime);
+      const last = sameDay.at(-1);
+      // First hours of a day default to a working day; more start an hour
+      // after the last ones end.
+      const startMinute = last ? Math.min(last.endMinute + 60, LAST_MINUTE - 60) : 9 * 60;
+      const endMinute = last ? Math.min(startMinute + 120, LAST_MINUTE) : 17 * 60;
+      return [...rows, { dayOfWeek, startMinute, endMinute }];
+    });
+    setJustSaved(false);
+  }
+
+  function undo() {
+    setName(profile.name);
+    setColor(profile.color);
+    setBufferMinutes(profile.bufferMinutes);
+    setWindows(profile.windows);
+    setError(null);
   }
 
   async function save() {
@@ -132,13 +221,13 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? "Could not save");
+        throw new Error(body.error ?? "Couldn't save. Try again.");
       }
 
-      setSaved(true);
+      setJustSaved(true);
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not save");
+      setError(cause instanceof Error ? cause.message : "Couldn't save. Try again.");
     } finally {
       setBusy(false);
     }
@@ -150,163 +239,256 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
     }
 
     setBusy(true);
-    await fetch(`/api/profiles/${profile.id}`, { method: "DELETE" });
-    setBusy(false);
-    router.refresh();
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/profiles/${profile.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? "Couldn't delete that. Try again.");
+      }
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't delete that. Try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
+  const uid = profile.id;
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5">
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
-            Name
-          </label>
+    <Surface className="p-4 sm:p-5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        <h2 id={`profile-${uid}`} className="t-heading text-text">
+          {profile.name}
+        </h2>
+        {profile.isDefault ? <Tag>Default</Tag> : null}
+        <span className="ml-auto t-small text-soft tabular">
+          {profile.taskCount} {profile.taskCount === 1 ? "task" : "tasks"}
+        </span>
+      </div>
+
+      {/* One line per day; tapping a day opens its hours. */}
+      <ul aria-label={`${profile.name}: weekly hours`} className="mt-4 divide-y divide-line">
+        {DAYS.map((day) => {
+          const dayWindows = windows.filter((w) => w.dayOfWeek === day).sort(byTime);
+          const open = openDay === day;
+          const panelId = `day-${uid}-${day}`;
+          return (
+            <li key={day}>
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-controls={panelId}
+                onClick={() => setOpenDay(open ? null : day)}
+                className="flex min-h-touch w-full items-center gap-3 rounded-control py-2 text-left hover:bg-pressed calm:px-2"
+              >
+                <span className="min-w-0 flex-1 tabular">
+                  <span className="t-label text-text">{DAY_SHORT[day - 1]}</span>
+                  <span className="t-body text-soft">
+                    {" · "}
+                    {daySummary(dayWindows)}
+                  </span>
+                </span>
+                <ChevronDown
+                  aria-hidden
+                  className={cx(
+                    "size-4 shrink-0 text-soft transition-transform duration-[var(--motion-fast)]",
+                    open && "rotate-180",
+                  )}
+                />
+              </button>
+
+              {open ? (
+                <div id={panelId} className="max-w-md space-y-2 pb-4 pt-1">
+                  {dayWindows.length === 0 ? (
+                    <p className="t-small text-soft">
+                      Off. Nothing from {profile.name} is planned on {DAY_NAMES[day - 1]}s.
+                    </p>
+                  ) : null}
+
+                  {dayWindows.map((window, index) => {
+                    const id = `${uid}-${day}-${index}`;
+                    const range = `${formatClock(window.startMinute)} to ${formatClock(window.endMinute)}`;
+                    return (
+                      <div key={id}>
+                        {/* Two fields share the row; removing sits below, so
+                            the times are never squeezed on a phone. */}
+                        {/* Side by side when they fit; stacked on small phones
+                            and at large text, so AM/PM is never cut off. */}
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(8.5rem,100%),1fr))] gap-2">
+                          <div className="min-w-0">
+                            <label htmlFor={`start-${id}`} className="mb-1 block t-caption text-muted">
+                              From
+                            </label>
+                            <input
+                              id={`start-${id}`}
+                              type="time"
+                              value={minutesToLabel(window.startMinute)}
+                              onChange={(e) =>
+                                updateWindow(window, { startMinute: labelToMinutes(e.target.value) })
+                              }
+                              className={cx(inputBase, "w-full px-3 tabular")}
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <label htmlFor={`end-${id}`} className="mb-1 block t-caption text-muted">
+                              Until
+                            </label>
+                            <input
+                              id={`end-${id}`}
+                              type="time"
+                              value={minutesToLabel(window.endMinute)}
+                              onChange={(e) =>
+                                updateWindow(window, { endMinute: labelToMinutes(e.target.value) })
+                              }
+                              className={cx(inputBase, "w-full px-3 tabular")}
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label={`Remove these hours: ${profile.name}, ${DAY_NAMES[day - 1]}, ${range}`}
+                          onClick={() => removeWindow(window, day)}
+                          className="-ml-2 mt-1 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-soft hover:text-text"
+                        >
+                          <X aria-hidden className="size-4" />
+                          Remove these hours
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  <button
+                    id={`add-${uid}-${day}`}
+                    type="button"
+                    onClick={() => addWindow(day)}
+                    className="-ml-2 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-soft hover:text-text"
+                  >
+                    <Plus aria-hidden className="size-4" />
+                    {dayWindows.length === 0 ? "Add hours" : "Add more hours"}
+                  </button>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+
+      <button
+        type="button"
+        aria-expanded={showDetails}
+        aria-controls={`details-${uid}`}
+        onClick={() => setShowDetails((value) => !value)}
+        className="-ml-2 mt-4 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-soft hover:text-text"
+      >
+        Name, color and gap
+        <ChevronDown
+          aria-hidden
+          className={cx(
+            "size-4 transition-transform duration-[var(--motion-fast)]",
+            showDetails && "rotate-180",
+          )}
+        />
+      </button>
+
+      <div
+        id={`details-${uid}`}
+        className={cx("mt-2 flex-wrap items-end gap-3", showDetails ? "flex" : "hidden")}
+      >
+        <div className="min-w-[min(10rem,100%)] flex-1">
+          <Label htmlFor={`name-${uid}`}>Name</Label>
           <input
+            id={`name-${uid}`}
             value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setSaved(false);
-            }}
-            className={`${field} mt-1`}
+            onChange={(e) => edit(setName)(e.target.value)}
+            className={inputClass}
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
-            Colour
-          </label>
+          <Label htmlFor={`color-${uid}`}>Color</Label>
           <input
+            id={`color-${uid}`}
             type="color"
             value={color}
-            onChange={(e) => {
-              setColor(e.target.value);
-              setSaved(false);
-            }}
-            className="mt-1 h-[38px] w-14 cursor-pointer rounded-lg border border-slate-300"
+            onChange={(e) => edit(setColor)(e.target.value)}
+            className="h-button w-16 cursor-pointer rounded-input border border-control-edge bg-surface p-1"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
-            Buffer (min)
-          </label>
-          <input
-            type="number"
-            min={0}
-            max={120}
-            step={5}
-            value={bufferMinutes}
-            onChange={(e) => {
-              setBufferMinutes(Number(e.target.value));
-              setSaved(false);
-            }}
-            className={`${field} mt-1 w-24`}
-          />
-        </div>
-
-        <div className="ml-auto flex items-center gap-3">
-          {profile.isDefault ? (
-            <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">
-              Default
+          <Label htmlFor={`buffer-${uid}`}>Gap around each block</Label>
+          <div className="flex items-center gap-2">
+            <input
+              id={`buffer-${uid}`}
+              type="number"
+              min={0}
+              max={120}
+              step={5}
+              value={bufferMinutes}
+              onChange={(e) => edit(setBufferMinutes)(Number(e.target.value))}
+              aria-describedby={`buffer-unit-${uid}`}
+              className={cx(inputBase, "w-24 tabular")}
+            />
+            <span id={`buffer-unit-${uid}`} className="t-small text-soft">
+              minutes
             </span>
-          ) : null}
-          <span className="text-xs text-slate-500">
-            {profile.taskCount} {profile.taskCount === 1 ? "task" : "tasks"}
-          </span>
+          </div>
         </div>
       </div>
 
-      <div className="mt-5 space-y-2">
-        {windows.length === 0 ? (
-          <p className="text-xs text-slate-500">
-            No hours yet — nothing can be scheduled here.
+      {/* Saving is the card's main action only once there is something to
+          save, and then it stays in view (above the phone tab bar) while you
+          edit anywhere in the card. */}
+      {dirty ? (
+        <div
+          ref={saveBar}
+          data-savebar
+          className="sticky bottom-[var(--tabbar-clearance)] z-[5] -mx-4 mt-4 flex flex-wrap items-center gap-3 border-t border-line bg-surface px-4 py-3 sm:-mx-5 sm:px-5 lg:bottom-4"
+        >
+          <Button onClick={save} disabled={busy}>
+            {busy ? "Saving…" : "Save and re-plan"}
+          </Button>
+          <Button variant="text" onClick={undo} disabled={busy}>
+            Undo
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        {!dirty && justSaved ? (
+          <p className="inline-flex items-center gap-1.5 t-small text-soft">
+            <Check aria-hidden className="size-4" />
+            Saved
           </p>
         ) : null}
-
-        {windows.map((window, index) => (
-          <div key={index} className="flex flex-wrap items-center gap-2">
-            <select
-              value={window.dayOfWeek}
-              onChange={(e) =>
-                updateWindow(index, { dayOfWeek: Number(e.target.value) })
-              }
-              className={`${field} w-36`}
-            >
-              {DAY_NAMES.map((day, i) => (
-                <option key={day} value={i + 1}>
-                  {day}
-                </option>
-              ))}
-            </select>
-
-            <input
-              type="time"
-              value={minutesToLabel(window.startMinute)}
-              onChange={(e) =>
-                updateWindow(index, { startMinute: labelToMinutes(e.target.value) })
-              }
-              className={field}
-            />
-            <span className="text-sm text-slate-400">to</span>
-            <input
-              type="time"
-              value={minutesToLabel(window.endMinute)}
-              onChange={(e) =>
-                updateWindow(index, { endMinute: labelToMinutes(e.target.value) })
-              }
-              className={field}
-            />
-
-            <button
-              type="button"
-              onClick={() => {
-                setWindows((rows) => rows.filter((_, i) => i !== index));
-                setSaved(false);
-              }}
-              className="text-xs text-slate-400 transition hover:text-red-600"
-            >
-              Remove
-            </button>
-          </div>
-        ))}
-
-        <button
-          type="button"
-          onClick={() => {
-            setWindows((rows) => [
-              ...rows,
-              { dayOfWeek: 1, startMinute: 9 * 60, endMinute: 17 * 60 },
-            ]);
-            setSaved(false);
-          }}
-          className="text-xs font-medium text-indigo-600 hover:text-indigo-500"
-        >
-          Add a window
-        </button>
-      </div>
-
-      <div className="mt-5 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={save}
-          disabled={busy}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
-        >
-          {busy ? "Saving…" : saved ? "Saved" : "Save and re-plan"}
-        </button>
 
         <button
           type="button"
           onClick={remove}
           disabled={busy}
-          className="text-xs text-slate-400 transition hover:text-red-600 disabled:opacity-50"
+          aria-label={`Delete ${profile.name}`}
+          className="ml-auto min-h-touch rounded-control px-3 t-small text-muted hover:text-text disabled:opacity-50"
         >
           Delete
         </button>
 
-        {error ? <p className="text-xs text-red-600">{error}</p> : null}
+        {error ? (
+          <div className="w-full">
+            <Notice tone="error" icon={<AlertCircle className="size-4" />}>
+              {error}
+            </Notice>
+          </div>
+        ) : null}
       </div>
-    </div>
+
+      {/* Announces saves without moving focus. */}
+      <p role="status" className="sr-only">
+        {justSaved && !dirty ? `${profile.name} saved` : ""}
+      </p>
+    </Surface>
   );
 }

@@ -1,17 +1,21 @@
+import { DateTime } from "luxon";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import AddTaskForm from "@/components/AddTaskForm";
-import ConnectCalendarBanner from "@/components/ConnectCalendarBanner";
+import ConnectCalendarLine from "@/components/ConnectCalendarLine";
 import NowCard from "@/components/NowCard";
 import RescheduleButton from "@/components/RescheduleButton";
 import TaskList from "@/components/TaskList";
 import WeekView from "@/components/WeekView";
+import ZoneNote from "@/components/ZoneNote";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { hasGoogleConnected } from "@/lib/google";
 import type { BlockView, TaskView } from "@/components/types";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Schedule" };
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -66,46 +70,60 @@ export default async function DashboardPage() {
           ...block,
           taskId: task.id,
           title: task.title,
-          color: task.profile?.color ?? "#6366f1",
+          color: task.profile?.color ?? "var(--text-muted)",
+          category: task.profile?.name ?? null,
         })),
   );
 
   const openTasks = taskViews.filter((task) => task.status !== "COMPLETED");
   const doneTasks = taskViews.filter((task) => task.status === "COMPLETED");
 
+  // DESIGN.md's voice: Calm greets you, Momentum states the day.
+  const calmGreeting = user?.name ? `Hey ${user.name.split(" ")[0]}.` : "Your week";
+  const momentumGreeting = DateTime.now().setZone(timeZone).toFormat("ccc d LLL");
+
   return (
     <div className="space-y-8">
-      {connected ? null : <ConnectCalendarBanner />}
-
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {user?.name ? `Hey ${user.name.split(" ")[0]}` : "Your week"}
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {openTasks.length} open {openTasks.length === 1 ? "task" : "tasks"} ·
-            times shown in {timeZone.replace("_", " ")}
-          </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="t-display text-text momentum:hidden">{calmGreeting}</h1>
+          <h1 className="hidden t-display text-text momentum:block">{momentumGreeting}</h1>
+          {openTasks.length > 0 ? (
+            <p className="mt-2 t-body text-soft">
+              {openTasks.length} open {openTasks.length === 1 ? "task" : "tasks"}
+              <ZoneNote timeZone={timeZone} />
+            </p>
+          ) : null}
+          {connected ? null : <ConnectCalendarLine />}
         </div>
-        <RescheduleButton disabled={!connected} />
+        {/* Nothing to re-plan on an empty account; adding is the only action. */}
+        {openTasks.length > 0 ? <RescheduleButton /> : null}
       </div>
 
-      <NowCard blocks={blocks} timeZone={timeZone} />
-
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]">
-        <div className="space-y-8">
+      {/* Phones: the plan first (now, then the week), then adding, then the
+          list. Wide screens keep adding beside the plan. The source order is
+          the phone order, so keyboard and screen-reader order match it. */}
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] lg:grid-rows-[auto_1fr]">
+        <div className="min-w-0 space-y-10 lg:col-start-1 lg:row-start-1">
+          <NowCard blocks={blocks} timeZone={timeZone} />
           <WeekView blocks={blocks} timeZone={timeZone} />
-          <TaskList
-            tasks={openTasks}
-            doneTasks={doneTasks}
-            timeZone={timeZone}
-          />
         </div>
 
-        <aside>
+        <aside
+          aria-label="Add a task"
+          className="min-w-0 lg:sticky lg:top-10 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start"
+        >
           <AddTaskForm profiles={profiles} timeZone={timeZone} />
         </aside>
-      </section>
+
+        {/* A brand-new account already hears "nothing planned" from the card
+            and the week; an empty list would say it a third time. */}
+        {taskViews.length > 0 ? (
+          <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+            <TaskList tasks={openTasks} doneTasks={doneTasks} timeZone={timeZone} connected={connected} />
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

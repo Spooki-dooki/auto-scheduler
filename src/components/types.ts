@@ -9,6 +9,8 @@ export type BlockView = BlockSummary & {
   taskId: string;
   title: string;
   color: string;
+  /** The set of hours it belongs to ("Study"), so color is never the only cue. */
+  category: string | null;
 };
 
 export type TaskView = {

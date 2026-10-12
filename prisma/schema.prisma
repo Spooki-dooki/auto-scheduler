@@ -25,6 +25,11 @@ model User {
   // Which Google calendar auto-scheduled blocks are written to.
   calendarId String @default("primary")
 
+  // Settings -> Appearance: {"theme":"calm","accents":{"calm":"apricot",
+  // "momentum":"cobalt"}}. Null until the user picks; always read through
+  // normalizeAppearance() (src/lib/theme/appearance.ts).
+  appearance Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

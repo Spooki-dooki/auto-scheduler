@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 
+import { ProgressBar, Surface, Tag } from "@/components/ui";
+import { scheduleCopy } from "@/lib/copy";
 import { formatRange } from "@/lib/format";
 import type { BlockView } from "@/components/types";
 
 /**
  * The "what should I be doing right now" answer, which is the one thing a busy
- * person actually opens the app for.
+ * person actually opens the app for. Same facts in both themes: Calm says the
+ * time left in a sentence, Momentum shows it as the big numeral.
  */
 export default function NowCard({
   blocks,
@@ -27,7 +30,7 @@ export default function NowCard({
   }, []);
 
   if (now === null) {
-    return <div className="h-28 rounded-xl border border-slate-200 bg-white" />;
+    return <Surface size="card" tone="raised" className="h-40" />;
   }
 
   const sorted = [...blocks].sort(
@@ -43,44 +46,60 @@ export default function NowCard({
 
   if (!block) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <p className="text-xs font-medium uppercase tracking-widest text-slate-400">
-          Right now
-        </p>
-        <p className="mt-2 text-lg font-medium text-slate-900">Nothing scheduled.</p>
-        <p className="mt-1 text-sm text-slate-600">
-          Add a task and it will be placed in your next open slot.
-        </p>
-      </div>
+      <Surface size="card" tone="raised">
+        <h2 className="t-heading text-text">{scheduleCopy.nowEmpty.title}</h2>
+        <p className="mt-2 t-small text-soft">{scheduleCopy.nowEmpty.body}</p>
+      </Surface>
     );
   }
 
-  const minutesAway = Math.round(
-    (new Date(block.start).getTime() - now) / 60_000,
-  );
+  const start = new Date(block.start).getTime();
+  const end = new Date(block.end).getTime();
+  const minutesAway = Math.max(0, Math.round((start - now) / 60_000));
+  const minutesLeft = Math.max(0, Math.round((end - now) / 60_000));
+
+  const counter = current
+    ? { value: minutesLeft, short: "min left", sentence: `${minutesLeft} minutes left` }
+    : minutesAway < 60
+      ? { value: minutesAway, short: "min to start", sentence: `Starts in ${minutesAway} minutes.` }
+      : null;
 
   return (
-    <div
-      className="rounded-xl border bg-white p-6"
-      style={{ borderColor: block.color }}
-    >
-      <p className="text-xs font-medium uppercase tracking-widest text-slate-400">
-        {current ? "Right now" : "Up next"}
-      </p>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-        {block.title}
-      </p>
-      <p className="mt-1 text-sm text-slate-600">
+    <Surface size="card" tone="raised">
+      <div className="flex flex-wrap items-center gap-3">
+        <Tag tone="accent">{current ? "Now" : "Up next"}</Tag>
+        {block.category ? (
+          <span className="inline-flex items-center gap-1.5 t-caption text-soft">
+            <span
+              aria-hidden
+              className="size-2.5 rounded-full"
+              style={{ backgroundColor: block.color }}
+            />
+            {block.category}
+          </span>
+        ) : null}
+      </div>
+      <h2 className="mt-4 t-title text-text">{block.title}</h2>
+      <p className="mt-2 t-body text-soft tabular">
         {formatRange(block.start, block.end, timeZone)}
-        {current
-          ? ` · ${Math.max(
-              0,
-              Math.round((new Date(block.end).getTime() - now) / 60_000),
-            )} min left`
-          : minutesAway < 60
-            ? ` · starts in ${minutesAway} min`
-            : ""}
       </p>
-    </div>
+
+      {/* Same order in both themes: progress, then the time left. Calm says it
+          in a sentence; Momentum shows the number itself, as big as type allows. */}
+      {current ? (
+        <div className="mt-5">
+          <ProgressBar value={(now - start) / (end - start)} label={counter?.sentence ?? ""} />
+        </div>
+      ) : null}
+      {counter ? (
+        <>
+          <p className="mt-2 t-small text-soft tabular momentum:hidden">{counter.sentence}</p>
+          <p className="mt-4 hidden momentum:block">
+            <span className="block t-numeral text-text tabular">{counter.value}</span>
+            <span className="mt-1 block t-label text-soft">{counter.short}</span>
+          </p>
+        </>
+      ) : null}
+    </Surface>
   );
 }

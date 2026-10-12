@@ -1,8 +1,12 @@
 "use client";
 
+import { AlertCircle, Check, ChevronDown, Info } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import { Notice, Tag, cx } from "@/components/ui";
+import { scheduleCopy } from "@/lib/copy";
 import { formatDeadline, formatDuration, formatRange, PRIORITY_LABELS } from "@/lib/format";
 import type { TaskView } from "@/components/types";
 
@@ -10,35 +14,70 @@ export default function TaskList({
   tasks,
   doneTasks,
   timeZone,
+  connected,
 }: {
   tasks: TaskView[];
   doneTasks: TaskView[];
   timeZone: string;
+  /** Whether blocks also go to Google Calendar. Changes wording only. */
+  connected: boolean;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const [said, setSaid] = useState("");
+
+  // A ticked or deleted row leaves the list; say what happened and keep
+  // keyboard focus on the list instead of dropping it to the page.
+  function changed(message: string) {
+    setSaid(message);
+    heading.current?.focus();
+  }
+
   return (
-    <section className="space-y-3">
-      <h2 className="text-sm font-semibold text-slate-900">Tasks</h2>
+    <section aria-labelledby="tasks-heading" className="space-y-4">
+      <div>
+        <h2 id="tasks-heading" ref={heading} tabIndex={-1} className="t-heading text-text">
+          Tasks
+        </h2>
+        <p role="status" className={said ? "mt-1 t-small text-soft" : "sr-only"}>
+          {said}
+        </p>
+      </div>
 
       {tasks.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
-          Nothing queued. Add a task and it lands on your calendar straight away.
+        <p className="rounded-tile border border-dashed border-line p-6 t-small text-soft">
+          {scheduleCopy.tasksEmpty}
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="divide-y divide-line calm:rounded-tile calm:bg-surface momentum:border-y momentum:border-line">
           {tasks.map((task) => (
-            <TaskRow key={task.id} task={task} timeZone={timeZone} />
+            <TaskRow
+              key={task.id}
+              task={task}
+              timeZone={timeZone}
+              connected={connected}
+              openCount={tasks.length}
+              onChanged={changed}
+            />
           ))}
         </ul>
       )}
 
       {doneTasks.length > 0 ? (
-        <details className="pt-2">
-          <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-slate-500">
+        <details className="group pt-2">
+          <summary className="flex min-h-touch cursor-pointer list-none items-center gap-2 t-label text-muted hover:text-text">
+            <ChevronDown aria-hidden className="size-4 transition-transform duration-[var(--motion-fast)] group-open:rotate-180" />
             Done ({doneTasks.length})
           </summary>
-          <ul className="mt-2 space-y-2">
+          <ul className="mt-2 divide-y divide-line calm:rounded-tile calm:bg-surface momentum:border-y momentum:border-line">
             {doneTasks.map((task) => (
-              <TaskRow key={task.id} task={task} timeZone={timeZone} />
+              <TaskRow
+                key={task.id}
+                task={task}
+                timeZone={timeZone}
+                connected={connected}
+                openCount={tasks.length}
+                onChanged={changed}
+              />
             ))}
           </ul>
         </details>
@@ -47,7 +86,19 @@ export default function TaskList({
   );
 }
 
-function TaskRow({ task, timeZone }: { task: TaskView; timeZone: string }) {
+function TaskRow({
+  task,
+  timeZone,
+  connected,
+  openCount,
+  onChanged,
+}: {
+  task: TaskView;
+  timeZone: string;
+  connected: boolean;
+  openCount: number;
+  onChanged: (message: string) => void;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +106,7 @@ function TaskRow({ task, timeZone }: { task: TaskView; timeZone: string }) {
 
   const done = task.status === "COMPLETED";
 
-  async function send(method: "PATCH" | "DELETE", body?: unknown) {
+  async function send(method: "PATCH" | "DELETE", body: unknown, done: string) {
     setBusy(true);
     setError(null);
 
@@ -68,108 +119,165 @@ function TaskRow({ task, timeZone }: { task: TaskView; timeZone: string }) {
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error ?? "That did not work");
+        throw new Error(payload.error ?? "That didn't work. Try again.");
       }
 
+      onChanged(done);
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "That did not work");
+      setError(cause instanceof Error ? cause.message : "That didn't work. Try again.");
     } finally {
       setBusy(false);
     }
   }
+
+  function remove() {
+    const note = connected ? " Its blocks come off your calendar too." : "";
+    if (!confirm(`Delete "${task.title}"?${note}`)) return;
+    send("DELETE", undefined, `Deleted "${task.title}".`);
+  }
+
+  function toggle() {
+    if (done) {
+      send("PATCH", { status: "PENDING" }, `Reopened "${task.title}".`);
+      return;
+    }
+    const left = openCount - 1;
+    send(
+      "PATCH",
+      { status: "COMPLETED" },
+      left === 0 ? `Done: "${task.title}". Nothing else is open.` : `Done: "${task.title}". ${left} left.`,
+    );
+  }
+
+  const [deadlineAt, deadlineWord] = formatDeadline(task.deadline, timeZone).split(" · ");
+  const deadlinePassed = new Date(task.deadline).getTime() < Date.now();
 
   const futureBlocks = task.blocks.filter(
     (block) => new Date(block.end).getTime() > Date.now(),
   );
 
   return (
-    <li className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          checked={done}
-          disabled={busy}
-          onChange={() =>
-            send("PATCH", { status: done ? "PENDING" : "COMPLETED" })
-          }
-          className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-          aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
-        />
+    <li className="flex items-start gap-2 py-3 calm:px-2">
+      {/* A 44pt target around a 24pt box. */}
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={done}
+        aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
+        disabled={busy}
+        onClick={toggle}
+        className="grid size-touch shrink-0 place-items-center rounded-control disabled:opacity-50"
+      >
+        <span
+          className={cx(
+            "grid size-6 place-items-center border-[length:var(--outline-width)] calm:rounded-full momentum:rounded-cell",
+            done ? "border-accent bg-accent text-on-accent" : "border-control-edge",
+          )}
+        >
+          {done ? <Check aria-hidden className="size-4" strokeWidth={2.5} /> : null}
+        </span>
+      </button>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p
-              className={`text-sm font-medium ${
-                done ? "text-slate-400 line-through" : "text-slate-900"
-              }`}
-            >
-              {task.title}
-            </p>
-            {task.profile ? (
-              <span
-                className="rounded-full px-2 py-0.5 text-[11px] font-medium"
-                style={{
-                  backgroundColor: `${task.profile.color}1a`,
-                  color: task.profile.color,
-                }}
-              >
-                {task.profile.name}
-              </span>
-            ) : null}
-            {task.priority >= 3 ? (
-              <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600">
-                {PRIORITY_LABELS[task.priority]}
-              </span>
-            ) : null}
-          </div>
-
-          <p className="mt-1 text-xs text-slate-500">
-            {formatDuration(task.durationMinutes)} ·{" "}
-            {formatDeadline(task.deadline, timeZone)}
+      <div className="min-w-0 flex-1 pt-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className={cx("t-body-strong", done ? "text-muted line-through" : "text-text")}>
+            {task.title}
           </p>
-
-          {task.shortfallMinutes > 0 ? (
-            <p className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
-              {formatDuration(task.shortfallMinutes)} could not be fitted before
-              the deadline. Free up time, shorten it, or push the deadline.
-            </p>
-          ) : null}
-
-          {futureBlocks.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setOpen((value) => !value)}
-              className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-500"
-            >
-              {futureBlocks.length} scheduled{" "}
-              {futureBlocks.length === 1 ? "block" : "blocks"}
-            </button>
-          ) : null}
-
-          {open ? (
-            <ul className="mt-2 space-y-1">
-              {futureBlocks.map((block) => (
-                <li key={block.id} className="text-xs text-slate-600">
-                  {formatRange(block.start, block.end, timeZone)}
-                  {block.synced ? "" : " · not on calendar yet"}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
+          {task.priority >= 3 ? <Tag>{PRIORITY_LABELS[task.priority]}</Tag> : null}
         </div>
 
-        <button
-          type="button"
-          onClick={() => send("DELETE")}
-          disabled={busy}
-          className="text-xs text-slate-400 transition hover:text-red-600 disabled:opacity-50"
-        >
-          Delete
-        </button>
+        {/* Two short lines, so a wrap never starts a line with "·": when it
+            is due, then which hours and how long. */}
+        <p className="mt-1 t-small text-soft tabular">
+          {deadlineAt}
+          {/* Phones: its own line, no separator to strand. Wider: inline. */}
+          <span className="block whitespace-nowrap sm:inline">
+            <span className="hidden sm:inline"> · </span>
+            {deadlineWord}
+          </span>
+        </p>
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 t-small text-soft tabular">
+          {task.profile ? (
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <span
+                aria-hidden
+                className="size-2 rounded-full"
+                style={{ backgroundColor: task.profile.color }}
+              />
+              {task.profile.name} ·
+            </span>
+          ) : null}
+          <span className="whitespace-nowrap">{formatDuration(task.durationMinutes)}</span>
+        </p>
+
+        {task.shortfallMinutes > 0 ? (
+          <div className="mt-2">
+            <Notice icon={<Info className="size-4" />}>
+              {deadlinePassed ? (
+                <>
+                  The due date passed with {formatDuration(task.shortfallMinutes)} still open.
+                  Mark it done, or delete it and add it again with a new date.
+                </>
+              ) : (
+                <>
+                  {formatDuration(task.shortfallMinutes)} didn&apos;t fit before the deadline. Add
+                  time to {task.profile ? `your ${task.profile.name} hours` : "your hours"} on{" "}
+                  <Link href="/profiles" className="underline underline-offset-4">
+                    Hours
+                  </Link>
+                  , or delete it and add it again with a later deadline.
+                </>
+              )}
+            </Notice>
+          </div>
+        ) : null}
+
+        {futureBlocks.length > 0 ? (
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen((value) => !value)}
+            className="-ml-2 mt-1 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-soft hover:text-text hover:underline"
+          >
+            {futureBlocks.length} planned {futureBlocks.length === 1 ? "session" : "sessions"}
+            <ChevronDown
+              aria-hidden
+              className={cx("size-4 transition-transform duration-[var(--motion-fast)]", open && "rotate-180")}
+            />
+          </button>
+        ) : null}
+
+        {open ? (
+          <ul className="mt-1 space-y-1">
+            {futureBlocks.map((block) => (
+              <li key={block.id} className="t-small text-soft tabular">
+                {formatRange(block.start, block.end, timeZone)}
+                {connected && !block.synced ? " · not on your calendar yet" : ""}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {error ? (
+          <div className="mt-2">
+            <Notice tone="error" icon={<AlertCircle className="size-4" />}>
+              {error}
+            </Notice>
+          </div>
+        ) : null}
       </div>
+
+      {/* Quiet on purpose: a row's delete must not outshout its title. */}
+      <button
+        type="button"
+        onClick={remove}
+        disabled={busy}
+        aria-label={`Delete ${task.title}`}
+        className="min-h-touch shrink-0 rounded-control px-3 t-small text-muted hover:text-text disabled:opacity-50"
+      >
+        Delete
+      </button>
     </li>
   );
 }
