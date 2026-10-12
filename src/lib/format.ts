@@ -11,10 +11,13 @@ export function formatRange(
   return `${from.toFormat("ccc d LLL, h:mm a")} – ${to.toFormat("h:mm a")}`;
 }
 
-export function formatDeadline(deadline: Date | string, timeZone: string): string {
+export function formatDeadline(
+  deadline: Date | string,
+  timeZone: string,
+  at: Date = new Date(),
+): string {
   const dt = DateTime.fromJSDate(new Date(deadline)).setZone(timeZone);
-  const now = DateTime.now().setZone(timeZone);
-  const days = Math.ceil(dt.diff(now, "days").days);
+  const now = DateTime.fromJSDate(at).setZone(timeZone);
 
   const absolute = dt.toFormat("ccc d LLL, h:mm a");
 
@@ -22,6 +25,11 @@ export function formatDeadline(deadline: Date | string, timeZone: string): strin
   // 5). Compared as instants: rounding the day count made a deadline earlier
   // today (or late yesterday) read "today".
   if (dt < now) return `${absolute} · due date passed`;
+
+  // Calendar days in the user's zone, not 24-hour periods: at 1 AM Monday a
+  // Tuesday deadline is "tomorrow". Rounded, because days around a clock
+  // change are 23 or 25 hours long.
+  const days = Math.round(dt.startOf("day").diff(now.startOf("day"), "days").days);
   if (days === 0) return `${absolute} · today`;
   if (days === 1) return `${absolute} · tomorrow`;
   return `${absolute} · in ${days} days`;

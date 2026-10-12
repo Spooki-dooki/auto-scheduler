@@ -1,3 +1,4 @@
+import { DateTime } from "luxon";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -133,5 +134,24 @@ describe("deadline wording", () => {
     expect(formatDeadline(earlier, "America/New_York")).toMatch(/due date passed$/);
     const soon = new Date(Date.now() + 60 * 60_000).toISOString();
     expect(formatDeadline(soon, "America/New_York")).not.toMatch(/passed|overdue/);
+  });
+
+  it("counts calendar days in the user's zone, not 24-hour periods", async () => {
+    const { formatDeadline } = await import("@/lib/format");
+    const zone = "America/New_York";
+    const at = (iso: string) => DateTime.fromISO(iso, { zone }).toJSDate();
+    const word = (deadline: string, now: string) =>
+      formatDeadline(at(deadline), zone, at(now)).split(" · ")[1];
+
+    // 12:50 AM on Monday 12 Oct.
+    const monday = "2026-10-12T00:50";
+    expect(word("2026-10-12T23:00", monday)).toBe("today");
+    expect(word("2026-10-13T17:00", monday)).toBe("tomorrow");
+    expect(word("2026-10-14T17:00", monday)).toBe("in 2 days");
+    expect(word("2026-10-18T12:00", monday)).toBe("in 6 days");
+    // Across midnight: 11:30 PM to 12:30 AM is tomorrow.
+    expect(word("2026-10-13T00:30", "2026-10-12T23:30")).toBe("tomorrow");
+    // Across the clock change (US clocks go back on Sunday 1 Nov 2026).
+    expect(word("2026-11-02T09:00", "2026-10-31T22:00")).toBe("in 2 days");
   });
 });
