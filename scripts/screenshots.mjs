@@ -28,6 +28,11 @@ const THEMES = { calm: "calm.apricot.cobalt", momentum: "momentum.apricot.cobalt
 const openAddForm = (page) => page.locator("#title").click();
 /** Opens Monday on the first set of hours. */
 const openMonday = (page) => page.getByRole("button", { name: /^Mon ·/ }).first().click();
+/** Opens Monday and removes its hours, so the save bar shows (nothing is saved). */
+const unsavedChange = async (page) => {
+  await openMonday(page);
+  await page.getByRole("button", { name: /^Remove these hours/ }).first().click();
+};
 
 /** [name, who is signed in (or null), path, optional step before the shot] */
 const SCENARIOS = [
@@ -39,6 +44,7 @@ const SCENARIOS = [
   ["04b-schedule-no-calendar-planned", "jordan", "/dashboard"],
   ["05-hours", "maya", "/profiles"],
   ["05b-hours-day-open", "maya", "/profiles", openMonday],
+  ["05c-hours-unsaved", "maya", "/profiles", unsavedChange],
   ["06-settings", "maya", "/settings"],
 ];
 

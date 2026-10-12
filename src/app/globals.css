@@ -148,9 +148,15 @@
 
 /* On phones the tab bar is fixed to the bottom; keep whatever has focus (or
    is scrolled to) clear of it. */
+/* Whatever has focus (or is scrolled to) stays clear of what is fixed to
+   the bottom: the phone tab bar, and the Hours save bar while it shows
+   (ProfileEditor sets --savebar-clearance). */
+html {
+  scroll-padding-bottom: var(--savebar-clearance, 0px);
+}
 @media (width < 64rem) {
   html {
-    scroll-padding-bottom: var(--tabbar-clearance);
+    scroll-padding-bottom: calc(var(--tabbar-clearance) + var(--savebar-clearance, 0px));
   }
 }
 

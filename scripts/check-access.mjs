@@ -95,6 +95,12 @@ async function run() {
         await page.keyboard.press("Tab");
         const first = await page.evaluate(() => document.activeElement?.textContent?.trim());
         check(`${label}: first Tab stop skips to content`, first === "Skip to content", first);
+        const skip = await page.evaluate(() => {
+          const el = document.activeElement;
+          const r = el.getBoundingClientRect();
+          return { top: r.top, pad: parseFloat(getComputedStyle(el).paddingLeft) };
+        });
+        check(`${label}: the skip link shows on screen, padded`, skip.top >= 0 && skip.pad > 0, JSON.stringify(skip));
 
         // Walk every Tab stop; each must end up clear of the fixed tab bar.
         const hidden = [];
@@ -127,6 +133,30 @@ async function run() {
         const name = await remove.getAttribute("aria-label");
         const visible = (await remove.innerText()).trim();
         check(`${label}: "${visible}" is named starting with its visible words`, name?.startsWith(visible), name);
+
+        // With unsaved changes the save bar sticks to the bottom; nothing that
+        // takes focus may end up underneath it (or the tab bar).
+        await remove.click();
+        await page.locator("[data-savebar]").first().waitFor();
+        await page.locator("#title, h1").first().focus().catch(() => undefined);
+        const covered = [];
+        for (let i = 0; i < 40; i += 1) {
+          await page.keyboard.press("Tab");
+          const hit = await page.evaluate(() => {
+            const el = document.activeElement;
+            const bars = [document.querySelector("nav.fixed"), ...document.querySelectorAll("[data-savebar]")];
+            if (!el || bars.some((bar) => bar?.contains(el))) return null;
+            const r = el.getBoundingClientRect();
+            const hidden = bars.some((bar) => {
+              if (!bar) return false;
+              const b = bar.getBoundingClientRect();
+              return b.height > 0 && r.top < b.bottom && r.bottom > b.top + 1;
+            });
+            return hidden ? (el.textContent || el.getAttribute("aria-label") || el.tagName).trim().slice(0, 30) : null;
+          });
+          if (hit) covered.push(hit);
+        }
+        check(`${label}: with unsaved changes, focus stays clear of the save bar`, covered.length === 0, covered.join(", "));
       }
 
       if (path === "/settings") {

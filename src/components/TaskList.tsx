@@ -3,7 +3,7 @@
 import { AlertCircle, Check, ChevronDown, Info } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Notice, Tag, cx } from "@/components/ui";
 import { scheduleCopy } from "@/lib/copy";
@@ -22,11 +22,26 @@ export default function TaskList({
   /** Whether blocks also go to Google Calendar. Changes wording only. */
   connected: boolean;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  const [said, setSaid] = useState("");
+
+  // A ticked or deleted row leaves the list; say what happened and keep
+  // keyboard focus on the list instead of dropping it to the page.
+  function changed(message: string) {
+    setSaid(message);
+    heading.current?.focus();
+  }
+
   return (
     <section aria-labelledby="tasks-heading" className="space-y-4">
-      <h2 id="tasks-heading" className="t-heading text-text">
-        Tasks
-      </h2>
+      <div>
+        <h2 id="tasks-heading" ref={heading} tabIndex={-1} className="t-heading text-text">
+          Tasks
+        </h2>
+        <p role="status" className={said ? "mt-1 t-small text-soft" : "sr-only"}>
+          {said}
+        </p>
+      </div>
 
       {tasks.length === 0 ? (
         <p className="rounded-tile border border-dashed border-line p-6 t-small text-soft">
@@ -35,7 +50,14 @@ export default function TaskList({
       ) : (
         <ul className="divide-y divide-line calm:rounded-tile calm:bg-surface momentum:border-y momentum:border-line">
           {tasks.map((task) => (
-            <TaskRow key={task.id} task={task} timeZone={timeZone} connected={connected} />
+            <TaskRow
+              key={task.id}
+              task={task}
+              timeZone={timeZone}
+              connected={connected}
+              openCount={tasks.length}
+              onChanged={changed}
+            />
           ))}
         </ul>
       )}
@@ -48,7 +70,14 @@ export default function TaskList({
           </summary>
           <ul className="mt-2 divide-y divide-line calm:rounded-tile calm:bg-surface momentum:border-y momentum:border-line">
             {doneTasks.map((task) => (
-              <TaskRow key={task.id} task={task} timeZone={timeZone} connected={connected} />
+              <TaskRow
+                key={task.id}
+                task={task}
+                timeZone={timeZone}
+                connected={connected}
+                openCount={tasks.length}
+                onChanged={changed}
+              />
             ))}
           </ul>
         </details>
@@ -61,10 +90,14 @@ function TaskRow({
   task,
   timeZone,
   connected,
+  openCount,
+  onChanged,
 }: {
   task: TaskView;
   timeZone: string;
   connected: boolean;
+  openCount: number;
+  onChanged: (message: string) => void;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -73,7 +106,7 @@ function TaskRow({
 
   const done = task.status === "COMPLETED";
 
-  async function send(method: "PATCH" | "DELETE", body?: unknown) {
+  async function send(method: "PATCH" | "DELETE", body: unknown, done: string) {
     setBusy(true);
     setError(null);
 
@@ -89,6 +122,7 @@ function TaskRow({
         throw new Error(payload.error ?? "That didn't work. Try again.");
       }
 
+      onChanged(done);
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "That didn't work. Try again.");
@@ -100,8 +134,24 @@ function TaskRow({
   function remove() {
     const note = connected ? " Its blocks come off your calendar too." : "";
     if (!confirm(`Delete "${task.title}"?${note}`)) return;
-    send("DELETE");
+    send("DELETE", undefined, `Deleted "${task.title}".`);
   }
+
+  function toggle() {
+    if (done) {
+      send("PATCH", { status: "PENDING" }, `Reopened "${task.title}".`);
+      return;
+    }
+    const left = openCount - 1;
+    send(
+      "PATCH",
+      { status: "COMPLETED" },
+      left === 0 ? `Done: "${task.title}". Nothing else is open.` : `Done: "${task.title}". ${left} left.`,
+    );
+  }
+
+  const [deadlineAt, deadlineWord] = formatDeadline(task.deadline, timeZone).split(" · ");
+  const deadlinePassed = new Date(task.deadline).getTime() < Date.now();
 
   const futureBlocks = task.blocks.filter(
     (block) => new Date(block.end).getTime() > Date.now(),
@@ -116,7 +166,7 @@ function TaskRow({
         aria-checked={done}
         aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
         disabled={busy}
-        onClick={() => send("PATCH", { status: done ? "PENDING" : "COMPLETED" })}
+        onClick={toggle}
         className="grid size-touch shrink-0 place-items-center rounded-control disabled:opacity-50"
       >
         <span
@@ -137,9 +187,17 @@ function TaskRow({
           {task.priority >= 3 ? <Tag>{PRIORITY_LABELS[task.priority]}</Tag> : null}
         </div>
 
-        {/* Each piece stays whole when the line wraps (no orphaned "days"),
-            and carries its own separator so a wrapped line still reads. */}
-        <p className="mt-1 flex flex-wrap items-center gap-x-1.5 t-small text-soft tabular">
+        {/* Two short lines, so a wrap never starts a line with "·": when it
+            is due, then which hours and how long. */}
+        <p className="mt-1 t-small text-soft tabular">
+          {deadlineAt}
+          {/* Phones: its own line, no separator to strand. Wider: inline. */}
+          <span className="block whitespace-nowrap sm:inline">
+            <span className="hidden sm:inline"> · </span>
+            {deadlineWord}
+          </span>
+        </p>
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 t-small text-soft tabular">
           {task.profile ? (
             <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
               <span
@@ -147,30 +205,30 @@ function TaskRow({
                 className="size-2 rounded-full"
                 style={{ backgroundColor: task.profile.color }}
               />
-              {task.profile.name}
+              {task.profile.name} ·
             </span>
           ) : null}
-          {[formatDuration(task.durationMinutes), ...formatDeadline(task.deadline, timeZone).split(" · ")].map(
-            (part, index) => (
-              // The date itself may wrap at very large text; the short
-              // pieces never split.
-              <span key={part} className={index === 1 ? "min-w-0" : "whitespace-nowrap"}>
-                {index > 0 || task.profile ? "· " : ""}
-                {part}
-              </span>
-            ),
-          )}
+          <span className="whitespace-nowrap">{formatDuration(task.durationMinutes)}</span>
         </p>
 
         {task.shortfallMinutes > 0 ? (
           <div className="mt-2">
             <Notice icon={<Info className="size-4" />}>
-              {formatDuration(task.shortfallMinutes)} didn&apos;t fit before the deadline. Add more
-              time on{" "}
-              <Link href="/profiles" className="underline underline-offset-4">
-                Hours
-              </Link>
-              , or delete it and add it again with a later deadline.
+              {deadlinePassed ? (
+                <>
+                  The due date passed with {formatDuration(task.shortfallMinutes)} still open.
+                  Mark it done, or delete it and add it again with a new date.
+                </>
+              ) : (
+                <>
+                  {formatDuration(task.shortfallMinutes)} didn&apos;t fit before the deadline. Add
+                  time to {task.profile ? `your ${task.profile.name} hours` : "your hours"} on{" "}
+                  <Link href="/profiles" className="underline underline-offset-4">
+                    Hours
+                  </Link>
+                  , or delete it and add it again with a later deadline.
+                </>
+              )}
             </Notice>
           </div>
         ) : null}

@@ -84,7 +84,7 @@ async function run() {
     await page.locator("#tasks-heading").waitFor();
     const filled = await order();
     check("phone order: week, then add, then tasks", filled.week < filled.add && filled.add < filled.tasks, JSON.stringify(filled));
-    const tasksText = await page.locator("#tasks-heading").locator("..").innerText();
+    const tasksText = await page.locator("section[aria-labelledby=\"tasks-heading\"]").innerText();
     check("the task list shows it", tasksText.includes(TITLE));
     check("no 'not on your calendar yet' noise without a calendar", !tasksText.includes("not on your calendar yet"));
 

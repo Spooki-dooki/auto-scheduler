@@ -34,9 +34,11 @@ export default function AppNav({
 
   return (
     <>
+      {/* Kept off-screen (not sr-only, whose reset strips the padding) and
+          slid into view, padded and outlined, when it takes focus. */}
       <a
         href="#main"
-        className="sr-only z-30 rounded-control bg-raised px-4 py-3 t-body text-text focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        className="fixed left-4 top-4 z-30 -translate-y-[calc(100%+2rem)] rounded-control border border-line-strong bg-raised px-4 py-3 t-body text-text focus:translate-y-0"
       >
         Skip to content
       </a>

@@ -2,7 +2,7 @@
 
 import { AlertCircle, Check, ChevronDown, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button, Label, Notice, Surface, Tag, cx, inputBase, inputClass } from "@/components/ui";
 import { DAY_NAMES, DAY_SHORT, formatClock, labelToMinutes, minutesToLabel } from "@/lib/format";
@@ -127,6 +127,7 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const saveBar = useRef<HTMLDivElement>(null);
 
   const dirty =
     name !== profile.name ||
@@ -150,9 +151,20 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
     };
     window.addEventListener("beforeunload", warn);
     document.addEventListener("click", guard, true);
+    // The save bar now sticks to the bottom: keep focused rows above it, by
+    // its real height (it can grow with large text).
+    const root = document.documentElement.style;
+    const bar = saveBar.current;
+    const measure = () =>
+      root.setProperty("--savebar-clearance", `${(bar?.offsetHeight ?? 0) + 16}px`);
+    measure();
+    const resize = new ResizeObserver(measure);
+    if (bar) resize.observe(bar);
     return () => {
+      resize.disconnect();
       window.removeEventListener("beforeunload", warn);
       document.removeEventListener("click", guard, true);
+      root.removeProperty("--savebar-clearance");
     };
   }, [dirty, profile.name]);
 
@@ -432,12 +444,16 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
           save, and then it stays in view (above the phone tab bar) while you
           edit anywhere in the card. */}
       {dirty ? (
-        <div className="sticky bottom-[var(--tabbar-clearance)] z-[5] -mx-4 mt-4 flex flex-wrap items-center gap-3 border-t border-line bg-surface px-4 py-3 sm:-mx-5 sm:px-5 lg:bottom-4">
+        <div
+          ref={saveBar}
+          data-savebar
+          className="sticky bottom-[var(--tabbar-clearance)] z-[5] -mx-4 mt-4 flex flex-wrap items-center gap-3 border-t border-line bg-surface px-4 py-3 sm:-mx-5 sm:px-5 lg:bottom-4"
+        >
           <Button onClick={save} disabled={busy}>
             {busy ? "Saving…" : "Save and re-plan"}
           </Button>
           <Button variant="text" onClick={undo} disabled={busy}>
-            Undo changes
+            Undo
           </Button>
         </div>
       ) : null}

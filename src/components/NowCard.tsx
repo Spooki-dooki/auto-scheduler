@@ -84,21 +84,21 @@ export default function NowCard({
         {formatRange(block.start, block.end, timeZone)}
       </p>
 
-      {counter ? (
-        // Momentum's signature: the number itself, as big as the type allows.
-        <p className="mt-5 hidden momentum:block">
-          <span className="block t-numeral text-text tabular">{counter.value}</span>
-          <span className="mt-1 block t-label text-soft">{counter.short}</span>
-        </p>
-      ) : null}
-
+      {/* Same order in both themes: progress, then the time left. Calm says it
+          in a sentence; Momentum shows the number itself, as big as type allows. */}
       {current ? (
         <div className="mt-5">
           <ProgressBar value={(now - start) / (end - start)} label={counter?.sentence ?? ""} />
-          <p className="mt-2 t-small text-soft tabular momentum:hidden">{counter?.sentence}</p>
         </div>
-      ) : counter ? (
-        <p className="mt-2 t-small text-soft tabular momentum:hidden">{counter.sentence}</p>
+      ) : null}
+      {counter ? (
+        <>
+          <p className="mt-2 t-small text-soft tabular momentum:hidden">{counter.sentence}</p>
+          <p className="mt-4 hidden momentum:block">
+            <span className="block t-numeral text-text tabular">{counter.value}</span>
+            <span className="mt-1 block t-label text-soft">{counter.short}</span>
+          </p>
+        </>
       ) : null}
     </Surface>
   );
