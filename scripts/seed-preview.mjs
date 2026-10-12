@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
- * Fills a LOCAL database with two preview accounts so every screen can be
+ * Fills a LOCAL database with three preview accounts so every screen can be
  * looked at without Google: a student mid-week ("Maya", calendar marked as
- * connected) and a brand-new account (nothing yet, not connected). Prints a
- * login session for each, for scripts/screenshots.mjs.
+ * connected), a brand-new account (nothing yet, not connected), and "Jordan"
+ * (not connected, no tasks yet: scripts/check-no-calendar.mjs adds one through
+ * the real form). Prints a login session for each, for scripts/screenshots.mjs.
  *
  *   node --env-file=.env.local scripts/seed-preview.mjs
  *
  * Refuses to run unless DATABASE_URL points at localhost. It deletes and
- * recreates only the two preview users (emails ending @preview.local).
+ * recreates only the preview users (emails ending @preview.local).
  */
 import { randomBytes } from "node:crypto";
 
@@ -148,9 +149,14 @@ async function main() {
   });
 
   const fresh = await makeUser("new@preview.local", null);
+  const jordan = await makeUser("jordan@preview.local", "Jordan Reyes");
 
   process.stdout.write(
-    JSON.stringify({ maya: maya.sessionToken, fresh: fresh.sessionToken }) + "\n",
+    JSON.stringify({
+      maya: maya.sessionToken,
+      fresh: fresh.sessionToken,
+      jordan: jordan.sessionToken,
+    }) + "\n",
   );
 }
 

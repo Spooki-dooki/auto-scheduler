@@ -5,6 +5,7 @@
  *
  *   node --env-file=.env.local scripts/seed-preview.mjs > /tmp/sessions.json
  *   npm run build && npx next start -p 3100 &
+ *   node --env-file=.env.local scripts/check-no-calendar.mjs http://localhost:3100 /tmp/sessions.json
  *   node scripts/screenshots.mjs http://localhost:3100 /tmp/sessions.json docs/screens/<date>-<name>
  *
  * The theme is chosen the way the app remembers it: the `appearance` cookie.
@@ -23,13 +24,21 @@ const WIDTHS = [
 ];
 const THEMES = { calm: "calm.apricot.cobalt", momentum: "momentum.apricot.cobalt" };
 
-/** [name, who is signed in (or null), path] */
+/** Taps the collapsed "Add something…" field open (phones). */
+const openAddForm = (page) => page.locator("#title").click();
+/** Opens Monday on the first set of hours. */
+const openMonday = (page) => page.getByRole("button", { name: /^Mon ·/ }).first().click();
+
+/** [name, who is signed in (or null), path, optional step before the shot] */
 const SCENARIOS = [
   ["01-landing", null, "/"],
   ["02-sign-in", null, "/login"],
   ["03-schedule", "maya", "/dashboard"],
+  ["03b-schedule-adding", "maya", "/dashboard", openAddForm],
   ["04-schedule-new-account", "fresh", "/dashboard"],
+  ["04b-schedule-no-calendar-planned", "jordan", "/dashboard"],
   ["05-hours", "maya", "/profiles"],
+  ["05b-hours-day-open", "maya", "/profiles", openMonday],
   ["06-settings", "maya", "/settings"],
 ];
 
@@ -41,7 +50,7 @@ async function run() {
 
   for (const [theme, cookie] of Object.entries(THEMES)) {
     for (const size of WIDTHS) {
-      for (const [name, who, path] of SCENARIOS) {
+      for (const [name, who, path, step] of SCENARIOS) {
         const file = `${theme}-w${size.width}-${name}.png`;
         if (ONLY && !ONLY.test(file)) continue;
         const context = await browser.newContext({
@@ -60,6 +69,7 @@ async function run() {
         page.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 160)));
         await page.goto(BASE + path, { waitUntil: "networkidle" });
         await page.evaluate(() => document.fonts.ready);
+        if (step) await step(page);
         await page.waitForTimeout(400);
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         // Grow the viewport to the page's height so fixed parts (the phone
