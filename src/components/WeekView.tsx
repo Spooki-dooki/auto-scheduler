@@ -109,6 +109,10 @@ export default function WeekView({
                           />
                           <span className="min-w-0 break-words t-small text-text">
                             {block.title}
+                            {/* Named, not just colored. */}
+                            {block.category ? (
+                              <span className="whitespace-nowrap text-muted"> · {block.category}</span>
+                            ) : null}
                           </span>
                         </span>
                       </div>

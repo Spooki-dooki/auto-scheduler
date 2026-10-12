@@ -73,6 +73,12 @@ function themeVars(name: ThemeName): Record<string, string | number> {
     vars[`t-${role}-ls`] = t.letterSpacing ? `${ratio(t.letterSpacing, t.size)}em` : "0";
     vars[`t-${role}-case`] = t.caps ? "uppercase" : "none";
   }
+  // Tab bar labels grow with text size only up to MAX_SCALE.tab, like iOS
+  // tab bars, so a long label never spills out of its cell.
+  for (const role of ["label", "caption"] as const) {
+    const size = typeScale[name][role].size;
+    vars[`tab-${role}-size`] = `min(${rem(size)}, ${Math.round(size * MAX_SCALE.tab)}px)`;
+  }
   return vars;
 }
 

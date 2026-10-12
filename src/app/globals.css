@@ -142,13 +142,15 @@
   /* Both themes are dark-only for now (DESIGN.md); native pickers, selects
      and scrollbars follow. */
   color-scheme: dark;
+  /* Room the fixed phone tab bar takes at the bottom of the screen. */
+  --tabbar-clearance: calc(6rem + env(safe-area-inset-bottom));
 }
 
 /* On phones the tab bar is fixed to the bottom; keep whatever has focus (or
    is scrolled to) clear of it. */
 @media (width < 64rem) {
   html {
-    scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+    scroll-padding-bottom: var(--tabbar-clearance);
   }
 }
 
@@ -166,7 +168,7 @@ body {
 }
 
 ::selection {
-  background-color: var(--selected-bg);
+  background-color: var(--selection);
   color: var(--text);
 }
 
@@ -194,6 +196,17 @@ textarea::placeholder {
 input[type="datetime-local"],
 input[type="time"] {
   appearance: none;
+}
+
+/* Tab bar labels stop growing at MAX_SCALE.tab (css.ts), like iOS tab bars,
+   so a long label never spills out of its cell at large text sizes. Plain
+   CSS outside Tailwind's layers, so it wins over the type role's size. */
+.tab-text {
+  font-size: var(--tab-caption-size);
+}
+[aria-current="page"] .tab-text,
+[data-theme="momentum"] .tab-text {
+  font-size: var(--tab-label-size);
 }
 
 /* The picker button inside these fields takes focus without the field

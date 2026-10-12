@@ -97,7 +97,7 @@ export default function AppNav({
                 <Icon aria-hidden className="size-5 momentum:hidden" strokeWidth={1.75} />
                 <span
                   className={cx(
-                    "max-w-full break-words",
+                    "tab-text max-w-full break-words",
                     active(href) ? "t-label" : "t-caption momentum:t-label",
                   )}
                 >

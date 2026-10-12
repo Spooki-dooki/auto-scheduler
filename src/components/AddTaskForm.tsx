@@ -106,6 +106,9 @@ export default function AddTaskForm({
       setTitle("");
       setDeadline(defaultDeadline(timeZone));
       setExpanded(false);
+      // The submit button is gone once the form closes; keep focus on the
+      // field, ready for the next task.
+      document.getElementById("title")?.focus();
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't save the task. Try again.");
@@ -132,7 +135,7 @@ export default function AddTaskForm({
       <div>
         <label
           htmlFor="title"
-          className="mb-2 hidden t-small text-soft lg:block"
+          className="sr-only t-small text-soft lg:not-sr-only lg:mb-2 lg:block"
         >
           What is it
         </label>
@@ -148,8 +151,7 @@ export default function AddTaskForm({
               setTitle(e.target.value);
               setExpanded(true);
             }}
-            onFocus={() => setExpanded(true)}
-            aria-label="What is it"
+            onClick={() => setExpanded(true)}
             required
             maxLength={200}
             placeholder={expanded ? "Study for the physics test" : scheduleCopy.addPlaceholder}
@@ -177,7 +179,8 @@ export default function AddTaskForm({
 
         <fieldset>
           <legend className="mb-2 t-small text-soft">How long it takes</legend>
-          <div className="grid grid-cols-5 gap-1.5">
+          {/* Five across on a phone; fewer per row as text grows. */}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(3.25rem,1fr))] gap-1.5">
             {DURATION_PRESETS.map((preset) => {
               const on = durationMinutes === preset;
               return (
@@ -220,7 +223,10 @@ export default function AddTaskForm({
           ) : (
             <button
               type="button"
-              onClick={() => setOtherLength(true)}
+              onClick={() => {
+                setOtherLength(true);
+                requestAnimationFrame(() => document.getElementById("duration")?.focus());
+              }}
               className="-ml-2 mt-1 inline-flex min-h-touch items-center rounded-control px-2 t-small text-soft hover:text-text"
             >
               Another length
@@ -228,7 +234,7 @@ export default function AddTaskForm({
           )}
         </fieldset>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(8.5rem,100%),1fr))] gap-3">
           <div className="min-w-0">
             <Label htmlFor="priority">Priority</Label>
             <select
@@ -328,7 +334,10 @@ export default function AddTaskForm({
           </Button>
           <button
             type="button"
-            onClick={() => setExpanded(false)}
+            onClick={() => {
+              setExpanded(false);
+              document.getElementById("title")?.focus();
+            }}
             className="min-h-touch rounded-control t-small text-soft hover:text-text lg:hidden"
           >
             Close

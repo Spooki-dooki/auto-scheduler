@@ -54,6 +54,14 @@ describe("WCAG AA for every pair the planner draws", () => {
     }
   });
 
+  it.each(ALL)("%s: selected text shows on every surface", (_, c) => {
+    for (const bg of surfaces(c)) {
+      expect(contrast(c.selection, bg, c.ground), `selection on ${bg}`).toBeGreaterThanOrEqual(2);
+      // ...and the text on it stays readable.
+      expect(contrast(c.text, c.selection, bg)).toBeGreaterThanOrEqual(AA_TEXT);
+    }
+  });
+
   it.each(ALL)("%s: the progress fill can be told from its track", (name, c) => {
     // Calm: the fill itself. Momentum's cobalt is too close to its track, so
     // the fill carries a text-colored leading edge (ui.tsx, ProgressBar).

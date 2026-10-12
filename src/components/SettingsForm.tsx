@@ -2,26 +2,34 @@
 
 import { AlertCircle, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { Button, Label, Notice, Surface, cx, inputClass } from "@/components/ui";
 import { zoneLabel } from "@/lib/format";
 
 type Calendar = { id: string; summary: string; primary: boolean };
 
-function supportedTimeZones(current: string): string[] {
+const noSubscribe = () => () => undefined;
+
+let browserZones: string[] | null = null;
+const NO_ZONES: string[] = [];
+
+/** The browser's own list of zones, read once and kept (a stable snapshot). */
+function readBrowserZones(): string[] {
   const intl = Intl as typeof Intl & {
     supportedValuesOf?: (key: string) => string[];
   };
-
-  const zones = intl.supportedValuesOf?.("timeZone") ?? [
+  browserZones ??= intl.supportedValuesOf?.("timeZone") ?? [
     "America/New_York",
     "America/Chicago",
     "America/Denver",
     "America/Los_Angeles",
     "Europe/London",
   ];
+  return browserZones;
+}
 
+function withCurrent(zones: string[], current: string): string[] {
   return zones.includes(current) ? zones : [current, ...zones];
 }
 
@@ -44,7 +52,17 @@ export default function SettingsForm({
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // The zone list differs between Node and each browser, so the server
+  // renders only the saved zone and the browser fills in the rest.
+  const zones = useSyncExternalStore(noSubscribe, readBrowserZones, () => NO_ZONES);
+
+  // Read on the client only: the server's zone is not the visitor's, and
+  // rendering it on the server made React rebuild the page (hydration error).
+  const browserZone = useSyncExternalStore(
+    noSubscribe,
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    () => initialTimeZone,
+  );
 
   useEffect(() => {
     if (!connected) return;
@@ -111,7 +129,7 @@ export default function SettingsForm({
             }}
             className={inputClass}
           >
-            {supportedTimeZones(timeZone).map((zone) => (
+            {withCurrent(zones, timeZone).map((zone) => (
               <option key={zone} value={zone}>
                 {zoneLabel(zone)}
               </option>

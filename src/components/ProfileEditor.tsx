@@ -168,9 +168,11 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
     setJustSaved(false);
   }
 
-  function removeWindow(target: WindowRow) {
+  function removeWindow(target: WindowRow, day: number) {
     setWindows((rows) => rows.filter((row) => row !== target));
     setJustSaved(false);
+    // The button just removed itself; keep keyboard focus in the same day.
+    requestAnimationFrame(() => document.getElementById(`add-${profile.id}-${day}`)?.focus());
   }
 
   function addWindow(dayOfWeek: number) {
@@ -302,7 +304,9 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
                       <div key={id}>
                         {/* Two fields share the row; removing sits below, so
                             the times are never squeezed on a phone. */}
-                        <div className="grid grid-cols-2 gap-2">
+                        {/* Side by side when they fit; stacked on small phones
+                            and at large text, so AM/PM is never cut off. */}
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(8.5rem,100%),1fr))] gap-2">
                           <div className="min-w-0">
                             <label htmlFor={`start-${id}`} className="mb-1 block t-caption text-muted">
                               From
@@ -334,8 +338,8 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
                         </div>
                         <button
                           type="button"
-                          aria-label={`Remove ${profile.name} hours on ${DAY_NAMES[day - 1]}, ${range}`}
-                          onClick={() => removeWindow(window)}
+                          aria-label={`Remove these hours: ${profile.name}, ${DAY_NAMES[day - 1]}, ${range}`}
+                          onClick={() => removeWindow(window, day)}
                           className="-ml-2 mt-1 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-soft hover:text-text"
                         >
                           <X aria-hidden className="size-4" />
@@ -346,6 +350,7 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
                   })}
 
                   <button
+                    id={`add-${uid}-${day}`}
                     type="button"
                     onClick={() => addWindow(day)}
                     className="-ml-2 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-soft hover:text-text"
@@ -427,7 +432,7 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
           save, and then it stays in view (above the phone tab bar) while you
           edit anywhere in the card. */}
       {dirty ? (
-        <div className="sticky bottom-[calc(6rem+env(safe-area-inset-bottom))] z-[5] -mx-4 mt-4 flex flex-wrap items-center gap-3 border-t border-line bg-surface px-4 py-3 sm:-mx-5 sm:px-5 lg:bottom-4">
+        <div className="sticky bottom-[var(--tabbar-clearance)] z-[5] -mx-4 mt-4 flex flex-wrap items-center gap-3 border-t border-line bg-surface px-4 py-3 sm:-mx-5 sm:px-5 lg:bottom-4">
           <Button onClick={save} disabled={busy}>
             {busy ? "Saving…" : "Save and re-plan"}
           </Button>

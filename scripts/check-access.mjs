@@ -2,7 +2,11 @@
 /**
  * Re-measures the audit's checkable findings on the production build, in both
  * themes:
- *   - no sideways scroll at 320px, or at 375px with browser text at 200%
+ *   - no sideways scroll at 320px, or at 375px with browser text at 200%,
+ *     with the add form and an Hours day opened as well as closed
+ *   - Settings renders without a hydration error in another time zone
+ *   - closing the add form keeps focus on its field; "Remove these hours"
+ *     is named starting with its visible words
  *   - on phones, nothing that takes keyboard focus is hidden by the tab bar
  *   - the first Tab stop is "Skip to content"
  *   - every page has its own title
@@ -36,8 +40,15 @@ function check(name, ok, detail = "") {
   if (!ok) failed += 1;
 }
 
-async function open(browser, { width, height = 812, theme, who, path, fontSize }) {
-  const context = await browser.newContext({ viewport: { width, height }, timezoneId: "America/New_York" });
+/** Opens what a page hides until tapped: the add form, Monday's hours. */
+async function openUp(page, path) {
+  if (path === "/dashboard") await page.locator("#title").click();
+  if (path === "/profiles") await page.getByRole("button", { name: /^Mon ·/ }).first().click();
+  await page.waitForTimeout(150);
+}
+
+async function open(browser, { width, height = 812, theme, who, path, fontSize, timezoneId = "America/New_York" }) {
+  const context = await browser.newContext({ viewport: { width, height }, timezoneId });
   const cookies = [{ name: "appearance", value: THEMES[theme], domain: host, path: "/" }];
   if (who) cookies.push({ name: "authjs.session-token", value: sessions[who], domain: host, path: "/" });
   await context.addCookies(cookies);
@@ -69,6 +80,11 @@ async function run() {
         const { context, page } = await open(browser, { width, theme, who, path, fontSize });
         const px = await overflow(page);
         check(`${label}: no sideways scroll at ${name}`, px <= 0, `${px}px`);
+        if (who && (path === "/dashboard" || path === "/profiles")) {
+          await openUp(page, path);
+          const opened = await overflow(page);
+          check(`${label}: still none with it opened, at ${name}`, opened <= 0, `${opened}px`);
+        }
         await context.close();
       }
 
@@ -98,6 +114,21 @@ async function run() {
         check(`${label}: focus never hidden behind the tab bar`, hidden.length === 0, hidden.join(", "));
       }
 
+      if (path === "/dashboard" && who === "maya") {
+        await page.locator("#title").click();
+        await page.getByRole("button", { name: "Close" }).click();
+        const focused = await page.evaluate(() => document.activeElement?.id);
+        check(`${label}: closing the add form keeps focus on its field`, focused === "title", focused);
+      }
+
+      if (path === "/profiles") {
+        await openUp(page, path);
+        const remove = page.getByRole("button", { name: /^Remove these hours/ }).first();
+        const name = await remove.getAttribute("aria-label");
+        const visible = (await remove.innerText()).trim();
+        check(`${label}: "${visible}" is named starting with its visible words`, name?.startsWith(visible), name);
+      }
+
       if (path === "/settings") {
         const radio = page.getByRole("radio", { name: /Calm theme|Momentum theme/ }).and(page.locator('[aria-checked="true"]'));
         await radio.focus();
@@ -110,6 +141,18 @@ async function run() {
       }
       await context.close();
     }
+  }
+
+  // Another time zone than the server's: the page must not be rebuilt.
+  for (const theme of Object.keys(THEMES)) {
+    const { context, page } = await open(browser, {
+      width: 375, theme, who: "maya", path: "/settings", timezoneId: "America/Los_Angeles",
+    });
+    const errors = [];
+    page.on("pageerror", (e) => errors.push(e.message.split("\n")[0]));
+    await page.reload({ waitUntil: "networkidle" });
+    check(`${theme} /settings in Los Angeles: no hydration error`, errors.length === 0, errors.join(" | "));
+    await context.close();
   }
 
   const distinct = new Set(titles.values());

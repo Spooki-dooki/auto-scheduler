@@ -35,6 +35,8 @@ export interface ThemeColors {
   controlEdge: string;
   pressed: string;
   destructive: string;
+  /** Highlight behind selected text: has to show on every surface. */
+  selection: string;
 }
 
 export function accentFor(name: ThemeName, accentId: string | undefined): AccentSwatch {
@@ -61,5 +63,8 @@ export function themeColors(name: ThemeName, accentId?: string): ThemeColors {
     selectedBorder: calm ? accent.color : p.lineStrong,
     pressed: calm ? "rgba(244, 238, 230, 0.06)" : "rgba(255, 255, 255, 0.08)",
     destructive: DESTRUCTIVE,
+    // Momentum's selected-chip color is its surface, which would hide
+    // selected text completely; both themes get a stronger highlight.
+    selection: calm ? withAlpha(accent.color, 0.4) : withAlpha(p.text, 0.35),
   };
 }
