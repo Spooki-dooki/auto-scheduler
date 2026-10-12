@@ -126,6 +126,7 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const dirty =
     name !== profile.name ||
@@ -133,13 +134,27 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
     bufferMinutes !== profile.bufferMinutes ||
     !sameWindows(windows, profile.windows);
 
-  // Closing or reloading the tab with unsaved hours asks first.
+  // Leaving with unsaved hours asks first: closing or reloading the tab, or
+  // following any link inside the app (the tab bar, the sidebar).
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    const guard = (event: MouseEvent) => {
+      const link = (event.target as Element | null)?.closest?.("a[href]");
+      const href = link?.getAttribute("href") ?? "";
+      if (!link || href.startsWith("#") || link.getAttribute("target") === "_blank") return;
+      if (!window.confirm(`Leave without saving your changes to ${profile.name}?`)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+    document.addEventListener("click", guard, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", guard, true);
+    };
+  }, [dirty, profile.name]);
 
   function edit<T>(set: (value: T) => void) {
     return (value: T) => {
@@ -256,9 +271,9 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
                 onClick={() => setOpenDay(open ? null : day)}
                 className="flex min-h-touch w-full items-center gap-3 rounded-control py-2 text-left hover:bg-pressed calm:px-2"
               >
-                <span className="min-w-0 flex-1 t-body tabular">
-                  <span className="t-body-strong text-text">{DAY_SHORT[day - 1]}</span>
-                  <span className="text-soft">
+                <span className="min-w-0 flex-1 tabular">
+                  <span className="t-label text-text">{DAY_SHORT[day - 1]}</span>
+                  <span className="t-body text-soft">
                     {" · "}
                     {daySummary(dayWindows)}
                   </span>
@@ -273,7 +288,7 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
               </button>
 
               {open ? (
-                <div id={panelId} className="max-w-md space-y-4 pb-4 pt-1">
+                <div id={panelId} className="max-w-md space-y-2 pb-4 pt-1">
                   {dayWindows.length === 0 ? (
                     <p className="t-small text-soft">
                       Off. Nothing from {profile.name} is planned on {DAY_NAMES[day - 1]}s.
@@ -345,7 +360,27 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
         })}
       </ul>
 
-      <div className="mt-6 flex flex-wrap items-end gap-3">
+      <button
+        type="button"
+        aria-expanded={showDetails}
+        aria-controls={`details-${uid}`}
+        onClick={() => setShowDetails((value) => !value)}
+        className="-ml-2 mt-4 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-soft hover:text-text"
+      >
+        Name, color and gap
+        <ChevronDown
+          aria-hidden
+          className={cx(
+            "size-4 transition-transform duration-[var(--motion-fast)]",
+            showDetails && "rotate-180",
+          )}
+        />
+      </button>
+
+      <div
+        id={`details-${uid}`}
+        className={cx("mt-2 flex-wrap items-end gap-3", showDetails ? "flex" : "hidden")}
+      >
         <div className="min-w-[min(10rem,100%)] flex-1">
           <Label htmlFor={`name-${uid}`}>Name</Label>
           <input
@@ -388,18 +423,22 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        {/* Saving is the card's main action only once there is something to save. */}
-        {dirty ? (
-          <>
-            <Button onClick={save} disabled={busy}>
-              {busy ? "Saving…" : "Save and re-plan"}
-            </Button>
-            <Button variant="text" onClick={undo} disabled={busy}>
-              Undo changes
-            </Button>
-          </>
-        ) : justSaved ? (
+      {/* Saving is the card's main action only once there is something to
+          save, and then it stays in view (above the phone tab bar) while you
+          edit anywhere in the card. */}
+      {dirty ? (
+        <div className="sticky bottom-[calc(6rem+env(safe-area-inset-bottom))] z-[5] -mx-4 mt-4 flex flex-wrap items-center gap-3 border-t border-line bg-surface px-4 py-3 sm:-mx-5 sm:px-5 lg:bottom-4">
+          <Button onClick={save} disabled={busy}>
+            {busy ? "Saving…" : "Save and re-plan"}
+          </Button>
+          <Button variant="text" onClick={undo} disabled={busy}>
+            Undo changes
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        {!dirty && justSaved ? (
           <p className="inline-flex items-center gap-1.5 t-small text-soft">
             <Check aria-hidden className="size-4" />
             Saved

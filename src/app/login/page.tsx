@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { Button, buttonClass, inputClass } from "@/components/ui";
+import { AlertCircle } from "lucide-react";
+
+import { Button, Notice, buttonClass, inputClass } from "@/components/ui";
 import { auth, signIn } from "@/lib/auth";
 import { APP_NAME } from "@/lib/copy";
 
@@ -10,9 +12,16 @@ const emailEnabled = Boolean(process.env.AUTH_RESEND_KEY);
 
 export const metadata: Metadata = { title: "Sign in" };
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await auth();
   if (session?.user) redirect("/dashboard");
+  // Auth.js sends people back here with ?error= when sign-in didn't finish
+  // (they cancelled at Google, or the link expired).
+  const { error } = await searchParams;
 
   async function signInWithGoogle() {
     "use server";
@@ -40,6 +49,14 @@ export default async function LoginPage() {
       <p className="mt-3 t-small text-soft">
         It only adds and moves its own blocks. It never changes or deletes your events.
       </p>
+
+      {error ? (
+        <div className="mt-6">
+          <Notice tone="error" icon={<AlertCircle className="size-4" />}>
+            Sign-in didn&apos;t finish, so nothing changed. Try again.
+          </Notice>
+        </div>
+      ) : null}
 
       <form action={signInWithGoogle} className="mt-8">
         <Button type="submit" className="w-full">

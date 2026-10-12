@@ -160,11 +160,10 @@ export function ProgressBar({ value, label }: { value: number; label: string }) 
       aria-valuenow={pct}
       className="h-progress overflow-hidden rounded-chip bg-track momentum:rounded-none"
     >
-      {/* Momentum's fill is close to its track, so it ends in a bright edge. */}
-      <div
-        className="h-full rounded-chip bg-accent momentum:rounded-none momentum:border-r-2 momentum:border-text"
-        style={{ width: `${pct}%` }}
-      />
+      <div className="relative h-full rounded-chip bg-accent momentum:rounded-none" style={{ width: `${pct}%` }}>
+        {/* Momentum's fill is close to its track, so it ends in a bright edge. */}
+        <span aria-hidden className="absolute inset-y-0 right-0 hidden w-0.5 bg-text momentum:block" />
+      </div>
     </div>
   );
 }

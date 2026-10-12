@@ -50,12 +50,11 @@ function Preview({ theme, accent }: { theme: ThemeName; accent: string }) {
             </p>
           ) : null}
           <div className="mt-5 h-progress overflow-hidden rounded-chip bg-track">
-            <div
-              className={cx(
-                "h-full w-3/5 rounded-chip bg-accent",
-                theme === "momentum" && "border-r-2 border-text",
-              )}
-            />
+            <div className="relative h-full w-3/5 rounded-chip bg-accent">
+              {theme === "momentum" ? (
+                <span className="absolute inset-y-0 right-0 w-0.5 bg-text" />
+              ) : null}
+            </div>
           </div>
           {theme === "calm" ? (
             <p className="mt-2 t-small text-soft">{p.minutesLeft} minutes left</p>

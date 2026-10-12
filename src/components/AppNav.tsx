@@ -52,7 +52,9 @@ export default function AppNav({
               href={href}
               aria-current={active(href) ? "page" : undefined}
               className={cx(
-                "flex min-h-touch items-center gap-3 rounded-chip px-4 t-body transition-colors duration-[var(--motion-fast)]",
+                // Momentum has no pill or icon, so its labels line up with the
+                // wordmark instead of sitting indented.
+                "flex min-h-touch items-center gap-3 rounded-chip px-4 t-body transition-colors duration-[var(--motion-fast)] momentum:px-0",
                 active(href)
                   ? "bg-selected text-selected-fg momentum:bg-transparent momentum:text-text momentum:underline momentum:decoration-accent momentum:decoration-[3px] momentum:underline-offset-8"
                   : "text-soft hover:bg-pressed hover:text-text",

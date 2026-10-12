@@ -36,7 +36,7 @@ export default async function HomePage() {
       <h1 className="mt-10 t-display text-text">
         Stop planning your week. Just tell it what is due.
       </h1>
-      <p className="mt-5 max-w-2xl t-body text-soft">
+      <p className="mt-5 max-w-xl t-body text-soft">
         Built for students and anyone stacking classes, shifts, and deadlines on top of each
         other. Your tasks get placed on your real calendar, automatically, and re-placed whenever
         something changes.
@@ -51,7 +51,7 @@ export default async function HomePage() {
           For example
         </h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-          <Surface className="p-5">
+          <Surface className="self-start p-5">
             <p className="t-small text-soft">You type</p>
             <p className="mt-3 t-body-strong text-text">{EXAMPLE.task.title}</p>
             <p className="mt-1 t-small text-soft">

@@ -47,8 +47,7 @@ export default function NowCard({
   if (!block) {
     return (
       <Surface size="card" tone="raised">
-        <Tag tone="accent">Now</Tag>
-        <h2 className="mt-4 t-heading text-text">{scheduleCopy.nowEmpty.title}</h2>
+        <h2 className="t-heading text-text">{scheduleCopy.nowEmpty.title}</h2>
         <p className="mt-2 t-small text-soft">{scheduleCopy.nowEmpty.body}</p>
       </Surface>
     );

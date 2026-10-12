@@ -173,10 +173,17 @@ export default function SettingsForm({
 
         {error ? <Notice tone="error" icon={<AlertCircle className="size-4" />}>{error}</Notice> : null}
 
-        <Button onClick={save} disabled={busy}>
-          {saved ? <Check aria-hidden className="size-4" /> : null}
-          {busy ? "Saving…" : saved ? "Saved" : "Save and re-plan"}
-        </Button>
+        {/* Same rule as Hours: Save appears once something changed. */}
+        {timeZone !== initialTimeZone || calendarId !== initialCalendarId ? (
+          <Button onClick={save} disabled={busy}>
+            {busy ? "Saving…" : "Save and re-plan"}
+          </Button>
+        ) : saved ? (
+          <p role="status" className="inline-flex items-center gap-1.5 t-small text-soft">
+            <Check aria-hidden className="size-4" />
+            Saved
+          </p>
+        ) : null}
       </Surface>
     </section>
   );

@@ -75,3 +75,34 @@ Phase 0 built none of these.
 - **Serves:** 1, and a real student problem (underestimating).
 - **Effort:** M. **Risk:** noisy data at first; cap the adjustment.
 - **Filter:** passes. Already in the brief; noting a no-question version.
+
+### 8. Show busy time, muted, in the week (from the Phase 0.5 design review)
+
+- **What:** draw the busy stretches read from the calendar ("Busy", no
+  titles: Google's free/busy gives none) as muted rows between the planned
+  blocks, the way the landing's example does. Every placement then explains
+  itself ("ah, it went at 11 PM because I'm in class until 9").
+- **Serves:** 1 and 5 (trust in the auto-plan). **Effort:** M (cache the
+  busy intervals per re-plan; today they are read and thrown away).
+  **Risk:** privacy stays the same if only start and end times are kept.
+- **Filter:** passes. Phase 1, alongside Google connect.
+
+### 9. Edit a task in place, and make the "didn't fit" notice actionable
+
+- **What:** tap a task's title to change it, its deadline or its length.
+  The "didn't fit" notice then offers the fix as a button: "Move the
+  deadline to Thu?" instead of describing three fixes.
+- **Serves:** 3 (user control) and 6. **Effort:** S–M (the API already
+  accepts PATCH). **Risk:** low.
+- **Filter:** passes. Phase 1. Today a wrong deadline means delete and add
+  again, and the notice says so honestly.
+
+### 10. One line to add a task ("bio lab report fri 5pm 2h")
+
+- **What:** the "Add something…" field parses a deadline and length from
+  plain words and shows what it understood; the form's controls become the
+  correction step, not the entry step. Pairs with idea 2.
+- **Serves:** 2 (≤ 3 inputs) and the landing's own promise ("just tell it
+  what is due"). **Effort:** M. **Risk:** misparses; always show the
+  result before saving.
+- **Filter:** passes. Phase 2 (first run).

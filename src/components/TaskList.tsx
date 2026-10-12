@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, Check, ChevronDown, Info } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -133,8 +134,13 @@ function TaskRow({
           <p className={cx("t-body-strong", done ? "text-muted line-through" : "text-text")}>
             {task.title}
           </p>
+          {task.priority >= 3 ? <Tag>{PRIORITY_LABELS[task.priority]}</Tag> : null}
+        </div>
+
+        {/* Each piece stays whole when the line wraps: no orphaned "days". */}
+        <p className="mt-1 flex flex-wrap gap-x-2 t-small text-soft tabular">
           {task.profile ? (
-            <span className="inline-flex items-center gap-1.5 t-caption text-soft">
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
               <span
                 aria-hidden
                 className="size-2 rounded-full"
@@ -143,18 +149,25 @@ function TaskRow({
               {task.profile.name}
             </span>
           ) : null}
-          {task.priority >= 3 ? <Tag>{PRIORITY_LABELS[task.priority]}</Tag> : null}
-        </div>
-
-        <p className="mt-1 t-small text-soft tabular">
-          {formatDuration(task.durationMinutes)} · {formatDeadline(task.deadline, timeZone)}
+          <span className="whitespace-nowrap">{formatDuration(task.durationMinutes)}</span>
+          {formatDeadline(task.deadline, timeZone)
+            .split(" · ")
+            .map((part) => (
+              <span key={part} className="whitespace-nowrap">
+                {part}
+              </span>
+            ))}
         </p>
 
         {task.shortfallMinutes > 0 ? (
           <div className="mt-2">
             <Notice icon={<Info className="size-4" />}>
-              {formatDuration(task.shortfallMinutes)} didn&apos;t fit before the deadline. Free up
-              some time, shorten it, or move the deadline.
+              {formatDuration(task.shortfallMinutes)} didn&apos;t fit before the deadline. Add more
+              time on{" "}
+              <Link href="/profiles" className="underline underline-offset-4">
+                Hours
+              </Link>
+              , or delete it and add it again with a later deadline.
             </Notice>
           </div>
         ) : null}

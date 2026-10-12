@@ -2,7 +2,7 @@ import { DateTime } from "luxon";
 
 import { cx } from "@/components/ui";
 import { scheduleCopy } from "@/lib/copy";
-import { formatHoursNumber } from "@/lib/format";
+import { formatDuration, formatHoursNumber } from "@/lib/format";
 import type { BlockView } from "@/components/types";
 
 const DAYS_SHOWN = 7;
@@ -52,7 +52,7 @@ export default function WeekView({
         </h2>
         {plannedMinutes > 0 ? (
           <p className="t-small text-soft tabular momentum:hidden">
-            {hours} {hoursUnit} planned
+            {formatDuration(Math.round(plannedMinutes))} planned
           </p>
         ) : null}
       </div>

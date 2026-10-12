@@ -49,6 +49,7 @@ export default function AddTaskForm({
   const [priority, setPriority] = useState(2);
   const [profileId, setProfileId] = useState(profiles[0]?.id ?? "");
   const [showChunks, setShowChunks] = useState(false);
+  const [otherLength, setOtherLength] = useState(false);
   const [minBlockMinutes, setMinBlockMinutes] = useState(profiles[0]?.defaultMinBlockMinutes ?? 30);
   const [maxBlockMinutes, setMaxBlockMinutes] = useState(profiles[0]?.defaultMaxBlockMinutes ?? 120);
 
@@ -117,7 +118,9 @@ export default function AddTaskForm({
     <form
       onSubmit={submit}
       aria-label="Add a task"
-      className="space-y-5 rounded-tile bg-surface p-4 sm:p-5"
+      // Flex gap, not space-y: hidden and screen-reader-only children take no
+      // room, so the collapsed card is padded evenly.
+      className="flex flex-col gap-5 rounded-tile bg-surface p-4 sm:p-5"
     >
       {/* On phones it opens downward only: nothing appears above the field
           you tapped, so it never jumps away from your thumb. The form and
@@ -141,7 +144,10 @@ export default function AddTaskForm({
           <input
             id="title"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setExpanded(true);
+            }}
             onFocus={() => setExpanded(true)}
             aria-label="What is it"
             required
@@ -152,7 +158,7 @@ export default function AddTaskForm({
         </div>
       </div>
 
-      <div className={cx("space-y-5", !expanded && "hidden lg:block")}>
+      <div className={cx("flex-col gap-5", expanded ? "flex" : "hidden lg:flex")}>
         <div>
           <Label htmlFor="deadline">Due by</Label>
           <input
@@ -195,21 +201,31 @@ export default function AddTaskForm({
               );
             })}
           </div>
-          <div className="mt-3 flex items-center gap-3">
-            <input
-              id="duration"
-              type="number"
-              min={5}
-              max={1440}
-              step={5}
-              value={durationMinutes}
-              onChange={(e) => setDurationMinutes(Number(e.target.value))}
-              className={cx(inputBase, "w-28 tabular")}
-            />
-            <label htmlFor="duration" className="t-small text-soft">
-              minutes
-            </label>
-          </div>
+          {otherLength || !DURATION_PRESETS.includes(durationMinutes) ? (
+            <div className="mt-3 flex items-center gap-3">
+              <input
+                id="duration"
+                type="number"
+                min={5}
+                max={1440}
+                step={5}
+                value={durationMinutes}
+                onChange={(e) => setDurationMinutes(Number(e.target.value))}
+                className={cx(inputBase, "w-28 tabular")}
+              />
+              <label htmlFor="duration" className="t-small text-soft">
+                minutes
+              </label>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setOtherLength(true)}
+              className="-ml-2 mt-1 inline-flex min-h-touch items-center rounded-control px-2 t-small text-soft hover:text-text"
+            >
+              Another length
+            </button>
+          )}
         </fieldset>
 
         <div className="grid grid-cols-2 gap-3">

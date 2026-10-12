@@ -88,19 +88,22 @@ export default async function DashboardPage() {
         <div className="min-w-0">
           <h1 className="t-display text-text momentum:hidden">{calmGreeting}</h1>
           <h1 className="hidden t-display text-text momentum:block">{momentumGreeting}</h1>
-          <p className="mt-2 t-body text-soft">
-            {openTasks.length} open {openTasks.length === 1 ? "task" : "tasks"}
-            <ZoneNote timeZone={timeZone} />
-          </p>
+          {openTasks.length > 0 ? (
+            <p className="mt-2 t-body text-soft">
+              {openTasks.length} open {openTasks.length === 1 ? "task" : "tasks"}
+              <ZoneNote timeZone={timeZone} />
+            </p>
+          ) : null}
           {connected ? null : <ConnectCalendarLine />}
         </div>
-        <RescheduleButton />
+        {/* Nothing to re-plan on an empty account; adding is the only action. */}
+        {openTasks.length > 0 ? <RescheduleButton /> : null}
       </div>
 
       {/* Phones: the plan first (now, then the week), then adding, then the
           list. Wide screens keep adding beside the plan. The source order is
           the phone order, so keyboard and screen-reader order match it. */}
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] lg:grid-rows-[auto_1fr]">
         <div className="min-w-0 space-y-10 lg:col-start-1 lg:row-start-1">
           <NowCard blocks={blocks} timeZone={timeZone} />
           <WeekView blocks={blocks} timeZone={timeZone} />
@@ -113,9 +116,13 @@ export default async function DashboardPage() {
           <AddTaskForm profiles={profiles} timeZone={timeZone} />
         </aside>
 
-        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
-          <TaskList tasks={openTasks} doneTasks={doneTasks} timeZone={timeZone} connected={connected} />
-        </div>
+        {/* A brand-new account already hears "nothing planned" from the card
+            and the week; an empty list would say it a third time. */}
+        {taskViews.length > 0 ? (
+          <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+            <TaskList tasks={openTasks} doneTasks={doneTasks} timeZone={timeZone} connected={connected} />
+          </div>
+        ) : null}
       </div>
     </div>
   );
