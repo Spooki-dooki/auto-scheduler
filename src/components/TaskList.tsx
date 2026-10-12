@@ -137,8 +137,9 @@ function TaskRow({
           {task.priority >= 3 ? <Tag>{PRIORITY_LABELS[task.priority]}</Tag> : null}
         </div>
 
-        {/* Each piece stays whole when the line wraps: no orphaned "days". */}
-        <p className="mt-1 flex flex-wrap gap-x-2 t-small text-soft tabular">
+        {/* Each piece stays whole when the line wraps (no orphaned "days"),
+            and carries its own separator so a wrapped line still reads. */}
+        <p className="mt-1 flex flex-wrap items-center gap-x-1.5 t-small text-soft tabular">
           {task.profile ? (
             <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
               <span
@@ -149,14 +150,16 @@ function TaskRow({
               {task.profile.name}
             </span>
           ) : null}
-          <span className="whitespace-nowrap">{formatDuration(task.durationMinutes)}</span>
-          {formatDeadline(task.deadline, timeZone)
-            .split(" · ")
-            .map((part) => (
-              <span key={part} className="whitespace-nowrap">
+          {[formatDuration(task.durationMinutes), ...formatDeadline(task.deadline, timeZone).split(" · ")].map(
+            (part, index) => (
+              // The date itself may wrap at very large text; the short
+              // pieces never split.
+              <span key={part} className={index === 1 ? "min-w-0" : "whitespace-nowrap"}>
+                {index > 0 || task.profile ? "· " : ""}
                 {part}
               </span>
-            ))}
+            ),
+          )}
         </p>
 
         {task.shortfallMinutes > 0 ? (

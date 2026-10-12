@@ -49,15 +49,18 @@ async function run() {
     check("one quiet line asks for the calendar", lines === 1, `${lines} found`);
     const body = await page.locator("main").innerText();
     check("nothing says scheduling waits for a calendar", !/nothing can be|needs a calendar/i.test(body));
-    check("Re-plan is available without a calendar", await page.getByRole("button", { name: "Re-plan now" }).isEnabled());
+    // With nothing to plan yet, adding is the only action on the page.
+    check("no Re-plan button while there is nothing to re-plan", (await page.getByRole("button", { name: "Re-plan now" }).count()) === 0);
 
     // Phones: the plan comes before the add field, and the add field is
     // collapsed to one input.
-    const order = await page.evaluate(() => {
-      const top = (sel) => document.querySelector(sel)?.getBoundingClientRect().top ?? -1;
-      return { week: top("#week-heading"), add: top("#title"), tasks: top("#tasks-heading") };
-    });
-    check("phone order: week, then add, then tasks", order.week < order.add && order.add < order.tasks, JSON.stringify(order));
+    const order = () =>
+      page.evaluate(() => {
+        const top = (sel) => document.querySelector(sel)?.getBoundingClientRect().top ?? -1;
+        return { week: top("#week-heading"), add: top("#title"), tasks: top("#tasks-heading") };
+      });
+    const empty = await order();
+    check("phone order: the week, then add (no empty task list)", empty.week < empty.add && empty.tasks === -1, JSON.stringify(empty));
     check("add form starts collapsed", !(await page.locator("#deadline").isVisible()));
     check("placeholder says Add something…", (await page.locator("#title").getAttribute("placeholder")) === "Add something…");
 
@@ -78,6 +81,9 @@ async function run() {
 
     await page.waitForFunction((t) => document.querySelector("#week-heading")?.closest("section")?.textContent?.includes(t), TITLE);
     check("the week shows it", true);
+    await page.locator("#tasks-heading").waitFor();
+    const filled = await order();
+    check("phone order: week, then add, then tasks", filled.week < filled.add && filled.add < filled.tasks, JSON.stringify(filled));
     const tasksText = await page.locator("#tasks-heading").locator("..").innerText();
     check("the task list shows it", tasksText.includes(TITLE));
     check("no 'not on your calendar yet' noise without a calendar", !tasksText.includes("not on your calendar yet"));
@@ -85,6 +91,9 @@ async function run() {
     const replan = page.waitForResponse((r) => r.url().endsWith("/api/schedule"));
     await page.getByRole("button", { name: "Re-plan now" }).click();
     check("Re-plan runs without a calendar", (await replan).status() === 200);
+    const said = page.getByRole("status").filter({ hasText: "Everything still fits." });
+    await said.waitFor({ timeout: 10_000 });
+    check("Re-plan says what it did", true, (await said.innerText()).trim());
 
     const task = await prisma.task.findFirst({
       where: { title: TITLE, user: { email: "jordan@preview.local" } },
