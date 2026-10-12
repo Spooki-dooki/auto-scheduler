@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import ProfileEditor from "@/components/ProfileEditor";
@@ -5,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Hours" };
 
 export default async function ProfilesPage() {
   const session = await auth();
@@ -25,8 +27,8 @@ export default async function ProfilesPage() {
       <div>
         <h1 className="t-display text-text">Your hours</h1>
         <p className="mt-2 max-w-2xl t-body text-soft">
-          A task tagged with a set of hours is only ever placed inside them.
-          Keep study time out of your shift, and your shift out of your evening.
+          A task tagged with a set of hours is only ever placed inside them. Keep study time out
+          of your shift, and your shift out of your evening. Tap a day to change it.
         </p>
       </div>
 

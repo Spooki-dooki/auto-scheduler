@@ -1,11 +1,11 @@
 "use client";
 
-import { AlertCircle, Check, Plus, X } from "lucide-react";
+import { AlertCircle, Check, ChevronDown, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button, Label, Notice, Surface, Tag, cx, inputBase, inputClass } from "@/components/ui";
-import { DAY_NAMES, labelToMinutes, minutesToLabel } from "@/lib/format";
+import { DAY_NAMES, DAY_SHORT, formatClock, labelToMinutes, minutesToLabel } from "@/lib/format";
 
 type WindowRow = { dayOfWeek: number; startMinute: number; endMinute: number };
 
@@ -21,8 +21,22 @@ type ProfileRow = {
   windows: WindowRow[];
 };
 
-// Inputs that size to their content instead of filling the row.
-const field = inputBase;
+const DAYS = [1, 2, 3, 4, 5, 6, 7];
+const LAST_MINUTE = 23 * 60 + 59;
+
+const byTime = (a: WindowRow, b: WindowRow) =>
+  a.dayOfWeek - b.dayOfWeek || a.startMinute - b.startMinute || a.endMinute - b.endMinute;
+const sameWindows = (a: WindowRow[], b: WindowRow[]) =>
+  JSON.stringify([...a].sort(byTime)) === JSON.stringify([...b].sort(byTime));
+
+/** "9:00 AM – 5:00 PM", "9:00 AM – 12:00 PM, 1:00 PM – 5:00 PM", or "Off". */
+function daySummary(windows: WindowRow[]): string {
+  if (windows.length === 0) return "Off";
+  return [...windows]
+    .sort(byTime)
+    .map((w) => `${formatClock(w.startMinute)} – ${formatClock(w.endMinute)}`)
+    .join(", ");
+}
 
 export default function ProfileEditor({ profiles }: { profiles: ProfileRow[] }) {
   const router = useRouter();
@@ -71,9 +85,9 @@ export default function ProfileEditor({ profiles }: { profiles: ProfileRow[] }) 
 
       <form
         onSubmit={createProfile}
-        className="flex flex-wrap items-end gap-3 rounded-tile border border-dashed border-line-strong p-4"
+        className="flex flex-wrap items-end gap-3 rounded-tile border border-dashed border-line p-4"
       >
-        <div className="min-w-[12rem] flex-1">
+        <div className="min-w-[min(12rem,100%)] flex-1">
           <Label htmlFor="new-profile">New set of hours</Label>
           <input
             id="new-profile"
@@ -91,7 +105,9 @@ export default function ProfileEditor({ profiles }: { profiles: ProfileRow[] }) 
         </Button>
         {error ? (
           <div className="w-full">
-            <Notice icon={<AlertCircle className="size-4" />}>{error}</Notice>
+            <Notice tone="error" icon={<AlertCircle className="size-4" />}>
+              {error}
+            </Notice>
           </div>
         ) : null}
       </form>
@@ -106,15 +122,61 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
   const [color, setColor] = useState(profile.color);
   const [bufferMinutes, setBufferMinutes] = useState(profile.bufferMinutes);
   const [windows, setWindows] = useState<WindowRow[]>(profile.windows);
+  const [openDay, setOpenDay] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
 
-  function updateWindow(index: number, patch: Partial<WindowRow>) {
-    setWindows((rows) =>
-      rows.map((row, i) => (i === index ? { ...row, ...patch } : row)),
-    );
-    setSaved(false);
+  const dirty =
+    name !== profile.name ||
+    color !== profile.color ||
+    bufferMinutes !== profile.bufferMinutes ||
+    !sameWindows(windows, profile.windows);
+
+  // Closing or reloading the tab with unsaved hours asks first.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  function edit<T>(set: (value: T) => void) {
+    return (value: T) => {
+      set(value);
+      setJustSaved(false);
+    };
+  }
+
+  function updateWindow(target: WindowRow, patch: Partial<WindowRow>) {
+    setWindows((rows) => rows.map((row) => (row === target ? { ...row, ...patch } : row)));
+    setJustSaved(false);
+  }
+
+  function removeWindow(target: WindowRow) {
+    setWindows((rows) => rows.filter((row) => row !== target));
+    setJustSaved(false);
+  }
+
+  function addWindow(dayOfWeek: number) {
+    setWindows((rows) => {
+      const sameDay = rows.filter((row) => row.dayOfWeek === dayOfWeek).sort(byTime);
+      const last = sameDay.at(-1);
+      // First hours of a day default to a working day; more start an hour
+      // after the last ones end.
+      const startMinute = last ? Math.min(last.endMinute + 60, LAST_MINUTE - 60) : 9 * 60;
+      const endMinute = last ? Math.min(startMinute + 120, LAST_MINUTE) : 17 * 60;
+      return [...rows, { dayOfWeek, startMinute, endMinute }];
+    });
+    setJustSaved(false);
+  }
+
+  function undo() {
+    setName(profile.name);
+    setColor(profile.color);
+    setBufferMinutes(profile.bufferMinutes);
+    setWindows(profile.windows);
+    setError(null);
   }
 
   async function save() {
@@ -133,7 +195,7 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
         throw new Error(body.error ?? "Couldn't save. Try again.");
       }
 
-      setSaved(true);
+      setJustSaved(true);
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Couldn't save. Try again.");
@@ -148,25 +210,148 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
     }
 
     setBusy(true);
-    await fetch(`/api/profiles/${profile.id}`, { method: "DELETE" });
-    setBusy(false);
-    router.refresh();
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/profiles/${profile.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? "Couldn't delete that. Try again.");
+      }
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Couldn't delete that. Try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   const uid = profile.id;
 
   return (
-    <Surface className="p-5">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-[10rem] flex-1">
+    <Surface className="p-4 sm:p-5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+        <h2 id={`profile-${uid}`} className="t-heading text-text">
+          {profile.name}
+        </h2>
+        {profile.isDefault ? <Tag>Default</Tag> : null}
+        <span className="ml-auto t-small text-soft tabular">
+          {profile.taskCount} {profile.taskCount === 1 ? "task" : "tasks"}
+        </span>
+      </div>
+
+      {/* One line per day; tapping a day opens its hours. */}
+      <ul aria-label={`${profile.name}: weekly hours`} className="mt-4 divide-y divide-line">
+        {DAYS.map((day) => {
+          const dayWindows = windows.filter((w) => w.dayOfWeek === day).sort(byTime);
+          const open = openDay === day;
+          const panelId = `day-${uid}-${day}`;
+          return (
+            <li key={day}>
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-controls={panelId}
+                onClick={() => setOpenDay(open ? null : day)}
+                className="flex min-h-touch w-full items-center gap-3 rounded-control py-2 text-left hover:bg-pressed calm:px-2"
+              >
+                <span className="min-w-0 flex-1 t-body tabular">
+                  <span className="t-body-strong text-text">{DAY_SHORT[day - 1]}</span>
+                  <span className="text-soft">
+                    {" · "}
+                    {daySummary(dayWindows)}
+                  </span>
+                </span>
+                <ChevronDown
+                  aria-hidden
+                  className={cx(
+                    "size-4 shrink-0 text-soft transition-transform duration-[var(--motion-fast)]",
+                    open && "rotate-180",
+                  )}
+                />
+              </button>
+
+              {open ? (
+                <div id={panelId} className="max-w-md space-y-4 pb-4 pt-1">
+                  {dayWindows.length === 0 ? (
+                    <p className="t-small text-soft">
+                      Off. Nothing from {profile.name} is planned on {DAY_NAMES[day - 1]}s.
+                    </p>
+                  ) : null}
+
+                  {dayWindows.map((window, index) => {
+                    const id = `${uid}-${day}-${index}`;
+                    const range = `${formatClock(window.startMinute)} to ${formatClock(window.endMinute)}`;
+                    return (
+                      <div key={id}>
+                        {/* Two fields share the row; removing sits below, so
+                            the times are never squeezed on a phone. */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="min-w-0">
+                            <label htmlFor={`start-${id}`} className="mb-1 block t-caption text-muted">
+                              From
+                            </label>
+                            <input
+                              id={`start-${id}`}
+                              type="time"
+                              value={minutesToLabel(window.startMinute)}
+                              onChange={(e) =>
+                                updateWindow(window, { startMinute: labelToMinutes(e.target.value) })
+                              }
+                              className={cx(inputBase, "w-full px-3 tabular")}
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <label htmlFor={`end-${id}`} className="mb-1 block t-caption text-muted">
+                              Until
+                            </label>
+                            <input
+                              id={`end-${id}`}
+                              type="time"
+                              value={minutesToLabel(window.endMinute)}
+                              onChange={(e) =>
+                                updateWindow(window, { endMinute: labelToMinutes(e.target.value) })
+                              }
+                              className={cx(inputBase, "w-full px-3 tabular")}
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${profile.name} hours on ${DAY_NAMES[day - 1]}, ${range}`}
+                          onClick={() => removeWindow(window)}
+                          className="-ml-2 mt-1 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-soft hover:text-text"
+                        >
+                          <X aria-hidden className="size-4" />
+                          Remove these hours
+                        </button>
+                      </div>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => addWindow(day)}
+                    className="-ml-2 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-soft hover:text-text"
+                  >
+                    <Plus aria-hidden className="size-4" />
+                    {dayWindows.length === 0 ? "Add hours" : "Add more hours"}
+                  </button>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="mt-6 flex flex-wrap items-end gap-3">
+        <div className="min-w-[min(10rem,100%)] flex-1">
           <Label htmlFor={`name-${uid}`}>Name</Label>
           <input
             id={`name-${uid}`}
             value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              setSaved(false);
-            }}
+            onChange={(e) => edit(setName)(e.target.value)}
             className={inputClass}
           />
         </div>
@@ -177,133 +362,73 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
             id={`color-${uid}`}
             type="color"
             value={color}
-            onChange={(e) => {
-              setColor(e.target.value);
-              setSaved(false);
-            }}
+            onChange={(e) => edit(setColor)(e.target.value)}
             className="h-button w-16 cursor-pointer rounded-input border border-control-edge bg-surface p-1"
           />
         </div>
 
         <div>
-          <Label htmlFor={`buffer-${uid}`}>Buffer (min)</Label>
-          <input
-            id={`buffer-${uid}`}
-            type="number"
-            min={0}
-            max={120}
-            step={5}
-            value={bufferMinutes}
-            onChange={(e) => {
-              setBufferMinutes(Number(e.target.value));
-              setSaved(false);
-            }}
-            className={cx(field, "w-28 tabular")}
-          />
-        </div>
-
-        <div className="flex min-h-button items-center gap-3 sm:ml-auto">
-          {profile.isDefault ? <Tag>Default</Tag> : null}
-          <span className="t-small text-soft tabular">
-            {profile.taskCount} {profile.taskCount === 1 ? "task" : "tasks"}
-          </span>
+          <Label htmlFor={`buffer-${uid}`}>Gap around each block</Label>
+          <div className="flex items-center gap-2">
+            <input
+              id={`buffer-${uid}`}
+              type="number"
+              min={0}
+              max={120}
+              step={5}
+              value={bufferMinutes}
+              onChange={(e) => edit(setBufferMinutes)(Number(e.target.value))}
+              aria-describedby={`buffer-unit-${uid}`}
+              className={cx(inputBase, "w-24 tabular")}
+            />
+            <span id={`buffer-unit-${uid}`} className="t-small text-soft">
+              minutes
+            </span>
+          </div>
         </div>
       </div>
 
-      <fieldset className="mt-6 space-y-3">
-        <legend className="mb-2 t-label text-muted">Weekly hours</legend>
-        {windows.length === 0 ? (
-          <p className="t-small text-soft">No hours yet, so nothing can be scheduled here.</p>
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        {/* Saving is the card's main action only once there is something to save. */}
+        {dirty ? (
+          <>
+            <Button onClick={save} disabled={busy}>
+              {busy ? "Saving…" : "Save and re-plan"}
+            </Button>
+            <Button variant="text" onClick={undo} disabled={busy}>
+              Undo changes
+            </Button>
+          </>
+        ) : justSaved ? (
+          <p className="inline-flex items-center gap-1.5 t-small text-soft">
+            <Check aria-hidden className="size-4" />
+            Saved
+          </p>
         ) : null}
-
-        {windows.map((window, index) => (
-          <div key={index} className="flex flex-wrap items-center gap-2">
-            <label className="sr-only" htmlFor={`day-${uid}-${index}`}>
-              Day
-            </label>
-            <select
-              id={`day-${uid}-${index}`}
-              value={window.dayOfWeek}
-              onChange={(e) =>
-                updateWindow(index, { dayOfWeek: Number(e.target.value) })
-              }
-              className={cx(field, "min-w-[9rem]")}
-            >
-              {DAY_NAMES.map((day, i) => (
-                <option key={day} value={i + 1}>
-                  {day}
-                </option>
-              ))}
-            </select>
-
-            <label className="sr-only" htmlFor={`start-${uid}-${index}`}>
-              From
-            </label>
-            <input
-              id={`start-${uid}-${index}`}
-              type="time"
-              value={minutesToLabel(window.startMinute)}
-              onChange={(e) =>
-                updateWindow(index, { startMinute: labelToMinutes(e.target.value) })
-              }
-              className={cx(field, "tabular")}
-            />
-            <span className="t-small text-muted">to</span>
-            <label className="sr-only" htmlFor={`end-${uid}-${index}`}>
-              Until
-            </label>
-            <input
-              id={`end-${uid}-${index}`}
-              type="time"
-              value={minutesToLabel(window.endMinute)}
-              onChange={(e) =>
-                updateWindow(index, { endMinute: labelToMinutes(e.target.value) })
-              }
-              className={cx(field, "tabular")}
-            />
-
-            <button
-              type="button"
-              aria-label={`Remove ${DAY_NAMES[window.dayOfWeek - 1] ?? "this"} window`}
-              onClick={() => {
-                setWindows((rows) => rows.filter((_, i) => i !== index));
-                setSaved(false);
-              }}
-              className="grid size-touch place-items-center rounded-control text-soft hover:bg-pressed hover:text-text"
-            >
-              <X aria-hidden className="size-4" />
-            </button>
-          </div>
-        ))}
 
         <button
           type="button"
-          onClick={() => {
-            setWindows((rows) => [
-              ...rows,
-              { dayOfWeek: 1, startMinute: 9 * 60, endMinute: 17 * 60 },
-            ]);
-            setSaved(false);
-          }}
-          className="-ml-2 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-accent-ink hover:underline"
+          onClick={remove}
+          disabled={busy}
+          aria-label={`Delete ${profile.name}`}
+          className="ml-auto min-h-touch rounded-control px-3 t-small text-muted hover:text-text disabled:opacity-50"
         >
-          <Plus aria-hidden className="size-4" />
-          Add a window
-        </button>
-      </fieldset>
-
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <Button onClick={save} disabled={busy}>
-          {saved ? <Check aria-hidden className="size-4" /> : null}
-          {busy ? "Saving…" : saved ? "Saved" : "Save and re-plan"}
-        </Button>
-
-        <Button variant="destructive" onClick={remove} disabled={busy}>
           Delete
-        </Button>
+        </button>
 
-        {error ? <Notice icon={<AlertCircle className="size-4" />}>{error}</Notice> : null}
+        {error ? (
+          <div className="w-full">
+            <Notice tone="error" icon={<AlertCircle className="size-4" />}>
+              {error}
+            </Notice>
+          </div>
+        ) : null}
       </div>
+
+      {/* Announces saves without moving focus. */}
+      <p role="status" className="sr-only">
+        {justSaved && !dirty ? `${profile.name} saved` : ""}
+      </p>
     </Surface>
   );
 }
