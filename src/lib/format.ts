@@ -61,3 +61,30 @@ export const PRIORITY_LABELS: Record<number, string> = {
   3: "High",
   4: "Critical",
 };
+
+/** A minute of the day as "9:00 AM". */
+export function formatClock(minute: number): string {
+  const h = Math.floor(minute / 60) % 24;
+  const m = minute % 60;
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+/** Minutes as hours with at most one decimal: 390 -> "6.5", 420 -> "7". */
+export function formatHoursNumber(minutes: number): string {
+  const tenths = Math.round(minutes / 6) / 10;
+  return Number.isInteger(tenths) ? String(tenths) : tenths.toFixed(1);
+}
+
+/** "America/Port_of_Spain" -> "Port of Spain". */
+export function zoneCity(timeZone: string): string {
+  return (timeZone.split("/").pop() ?? timeZone).replaceAll("_", " ");
+}
+
+/** "America/Port_of_Spain" -> "America/Port of Spain", for pickers. */
+export function zoneLabel(timeZone: string): string {
+  return timeZone.replaceAll("_", " ");
+}
+
+/** Short day names, Monday first, matching dayOfWeek 1-7. */
+export const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

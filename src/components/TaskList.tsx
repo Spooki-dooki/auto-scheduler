@@ -4,7 +4,8 @@ import { AlertCircle, Check, ChevronDown, Info } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { Button, Notice, SectionLabel, Tag, cx } from "@/components/ui";
+import { Notice, Tag, cx } from "@/components/ui";
+import { scheduleCopy } from "@/lib/copy";
 import { formatDeadline, formatDuration, formatRange, PRIORITY_LABELS } from "@/lib/format";
 import type { TaskView } from "@/components/types";
 
@@ -12,25 +13,28 @@ export default function TaskList({
   tasks,
   doneTasks,
   timeZone,
+  connected,
 }: {
   tasks: TaskView[];
   doneTasks: TaskView[];
   timeZone: string;
+  /** Whether blocks also go to Google Calendar. Changes wording only. */
+  connected: boolean;
 }) {
   return (
-    <section aria-labelledby="tasks-heading" className="space-y-3">
-      <SectionLabel>
-        <span id="tasks-heading">Tasks</span>
-      </SectionLabel>
+    <section aria-labelledby="tasks-heading" className="space-y-4">
+      <h2 id="tasks-heading" className="t-heading text-text">
+        Tasks
+      </h2>
 
       {tasks.length === 0 ? (
-        <p className="rounded-tile border border-dashed border-line-strong p-6 t-small text-soft">
-          Nothing queued. Add a task and it lands on your calendar straight away.
+        <p className="rounded-tile border border-dashed border-line p-6 t-small text-soft">
+          {scheduleCopy.tasksEmpty}
         </p>
       ) : (
         <ul className="divide-y divide-line calm:rounded-tile calm:bg-surface momentum:border-y momentum:border-line">
           {tasks.map((task) => (
-            <TaskRow key={task.id} task={task} timeZone={timeZone} />
+            <TaskRow key={task.id} task={task} timeZone={timeZone} connected={connected} />
           ))}
         </ul>
       )}
@@ -38,12 +42,12 @@ export default function TaskList({
       {doneTasks.length > 0 ? (
         <details className="group pt-2">
           <summary className="flex min-h-touch cursor-pointer list-none items-center gap-2 t-label text-muted hover:text-text">
-            <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
+            <ChevronDown aria-hidden className="size-4 transition-transform duration-[var(--motion-fast)] group-open:rotate-180" />
             Done ({doneTasks.length})
           </summary>
           <ul className="mt-2 divide-y divide-line calm:rounded-tile calm:bg-surface momentum:border-y momentum:border-line">
             {doneTasks.map((task) => (
-              <TaskRow key={task.id} task={task} timeZone={timeZone} />
+              <TaskRow key={task.id} task={task} timeZone={timeZone} connected={connected} />
             ))}
           </ul>
         </details>
@@ -52,7 +56,15 @@ export default function TaskList({
   );
 }
 
-function TaskRow({ task, timeZone }: { task: TaskView; timeZone: string }) {
+function TaskRow({
+  task,
+  timeZone,
+  connected,
+}: {
+  task: TaskView;
+  timeZone: string;
+  connected: boolean;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +97,8 @@ function TaskRow({ task, timeZone }: { task: TaskView; timeZone: string }) {
   }
 
   function remove() {
-    if (!confirm(`Delete "${task.title}"? Its blocks come off your calendar too.`)) return;
+    const note = connected ? " Its blocks come off your calendar too." : "";
+    if (!confirm(`Delete "${task.title}"?${note}`)) return;
     send("DELETE");
   }
 
@@ -151,10 +164,13 @@ function TaskRow({ task, timeZone }: { task: TaskView; timeZone: string }) {
             type="button"
             aria-expanded={open}
             onClick={() => setOpen((value) => !value)}
-            className="-ml-2 mt-1 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-accent-ink hover:underline"
+            className="-ml-2 mt-1 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-soft hover:text-text hover:underline"
           >
-            {futureBlocks.length} scheduled {futureBlocks.length === 1 ? "block" : "blocks"}
-            <ChevronDown aria-hidden className={cx("size-4 transition-transform", open && "rotate-180")} />
+            {futureBlocks.length} planned {futureBlocks.length === 1 ? "session" : "sessions"}
+            <ChevronDown
+              aria-hidden
+              className={cx("size-4 transition-transform duration-[var(--motion-fast)]", open && "rotate-180")}
+            />
           </button>
         ) : null}
 
@@ -163,7 +179,7 @@ function TaskRow({ task, timeZone }: { task: TaskView; timeZone: string }) {
             {futureBlocks.map((block) => (
               <li key={block.id} className="t-small text-soft tabular">
                 {formatRange(block.start, block.end, timeZone)}
-                {block.synced ? "" : " · not on your calendar yet"}
+                {connected && !block.synced ? " · not on your calendar yet" : ""}
               </li>
             ))}
           </ul>
@@ -171,14 +187,23 @@ function TaskRow({ task, timeZone }: { task: TaskView; timeZone: string }) {
 
         {error ? (
           <div className="mt-2">
-            <Notice icon={<AlertCircle className="size-4" />}>{error}</Notice>
+            <Notice tone="error" icon={<AlertCircle className="size-4" />}>
+              {error}
+            </Notice>
           </div>
         ) : null}
       </div>
 
-      <Button variant="text" onClick={remove} disabled={busy} className="shrink-0">
+      {/* Quiet on purpose: a row's delete must not outshout its title. */}
+      <button
+        type="button"
+        onClick={remove}
+        disabled={busy}
+        aria-label={`Delete ${task.title}`}
+        className="min-h-touch shrink-0 rounded-control px-3 t-small text-muted hover:text-text disabled:opacity-50"
+      >
         Delete
-      </Button>
+      </button>
     </li>
   );
 }
