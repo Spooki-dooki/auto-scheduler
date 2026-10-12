@@ -199,8 +199,10 @@ a recommendation only and has not been acted on.
 - "Mon · 9:00 AM – 5:00 PM" (or "Off") per day, opening an inline editor
   for that day. Replaces rows of day picker + two time pickers that wrapped
   badly on phones. Same data and API. Save is the main button only when
-  something changed; closing the tab with unsaved hours asks first (moving
-  to another page inside the app does not yet).
+  something changed, and then it stays in view (a bar above the phone tab
+  bar) while you edit. Leaving with unsaved hours asks first, whether you
+  close the tab or follow a link inside the app. Name, color and gap fold
+  away under one line.
 
 ### P-18. Logs get an error's name and first line, never the object
 
@@ -209,6 +211,22 @@ a recommendation only and has not been acted on.
   `src/lib/log.ts` is the only thing logged; a test fails if an error
   object is passed to `console`. Google's 401 now answers 409 "reconnect"
   instead of 500.
+
+### P-19. Second review round (same day)
+
+- The re-run design review and audit found new issues; all fixed:
+  - **Deadline words:** "in 2 days" for tomorrow. Counted 24-hour
+    periods; now calendar days in the user's zone. This was an older bug.
+  - **Settings hydration error:** it happened whenever the browser's time
+    zone differed from the server's.
+  - **Momentum:** selected text was invisible.
+  - **Large text:** values clipped at 200% text once a form was opened.
+  - **Focus:** it was lost when a button removed itself.
+  - **"Remove these hours":** its name didn't match its visible words.
+- **First screen of a new account:** no Re-plan button (it had nothing to
+  do), no "0 open tasks", and no empty task list repeating "nothing".
+- The bigger asks (edit a task in place, show busy time in the week,
+  one-line entry) are ideas 8–10 in `docs/IDEAS.md`, for Phase 1–2.
 
 ## Cross-cutting decisions (brief section 12)
 

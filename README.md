@@ -20,7 +20,7 @@ lives in the separate `achieve-it` repo. Product direction is in
   calendar so the plan can avoid your classes and events. On phones the
   plan comes first and adding is one "Add something…" field. Hours is one
   line per day.
-- **Works and was checked:** installs, type-checks, lints, 85 tests pass,
+- **Works and was checked:** installs, type-checks, lints, 92 tests pass,
   builds, and runs against a database. Adding a task with no calendar
   connected plans it on the spot (checked end to end in a browser). Every
   page was looked at in both looks at phone and desktop widths
@@ -83,7 +83,7 @@ Never commit `.env.local`; it is ignored by git on purpose.
 | `node --env-file=.env.local scripts/check-no-calendar.mjs` | Adds a task on an account with no calendar, through the phone-width form, and checks it gets planned |
 | `node scripts/screenshots.mjs` | Screenshots of every page in both looks (see the top of the file) |
 | `node scripts/check-appearance.mjs` | Clicks through Settings, Appearance and checks the switch is instant, saved and remembered |
-| `node scripts/check-access.mjs` | Checks reflow at 320px and 200% text, keyboard focus, page titles and arrow keys |
+| `node scripts/check-access.mjs` | Checks reflow at 320px and 200% text (forms opened too), keyboard focus, page titles, arrow keys, and Settings in another time zone |
 
 ## How the scheduler works
 
