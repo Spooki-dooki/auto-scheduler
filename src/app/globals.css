@@ -47,6 +47,7 @@
 
 /* Type roles from DESIGN.md. Values per theme come from css.ts. */
 @utility t-display {
+  text-wrap: balance;
   font-family: var(--t-display-family);
   font-weight: var(--t-display-weight);
   font-size: var(--t-display-size);
@@ -56,6 +57,7 @@
 }
 
 @utility t-title {
+  text-wrap: balance;
   font-family: var(--t-title-family);
   font-weight: var(--t-title-weight);
   font-size: var(--t-title-size);
@@ -142,6 +144,14 @@
   color-scheme: dark;
 }
 
+/* On phones the tab bar is fixed to the bottom; keep whatever has focus (or
+   is scrolled to) clear of it. */
+@media (width < 64rem) {
+  html {
+    scroll-padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+}
+
 body {
   background-color: var(--ground);
   color: var(--text);
@@ -184,6 +194,14 @@ textarea::placeholder {
 input[type="datetime-local"],
 input[type="time"] {
   appearance: none;
+}
+
+/* The picker button inside these fields takes focus without the field
+   matching :focus-visible, so ring the whole field instead. */
+input[type="datetime-local"]:focus-within,
+input[type="time"]:focus-within {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
 }
 
 /* Switching theme crossfades the whole page (DESIGN.md: 200ms), or switches

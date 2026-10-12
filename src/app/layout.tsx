@@ -27,20 +27,26 @@ const barlow = Barlow({
   weight: ["400", "600"],
   variable: "--font-barlow",
   display: "swap",
+  // Momentum only: fetched when a Momentum page asks for it, not preloaded
+  // on every page.
+  preload: false,
 });
 const barlowCondensed = Barlow_Condensed({
   subsets: ["latin"],
   weight: ["700", "800"],
   variable: "--font-barlow-condensed",
   display: "swap",
+  // Momentum only: fetched when a Momentum page asks for it, not preloaded
+  // on every page.
+  preload: false,
 });
 
 const THEME_CSS = themeStylesheet();
 
 export const metadata: Metadata = {
-  title: APP_NAME,
+  title: { default: APP_NAME, template: `%s · ${APP_NAME}` },
   description:
-    "Dump in your classes, shifts, and deadlines. Get an organised calendar back.",
+    "Dump in your classes, shifts, and deadlines. Get an organized calendar back.",
 };
 
 export const viewport: Viewport = {

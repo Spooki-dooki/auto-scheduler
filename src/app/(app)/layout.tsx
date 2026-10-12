@@ -39,10 +39,15 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen lg:flex">
-      <AppNav appName={APP_NAME} signOut={signOutButton} />
-      <main className="mx-auto w-full max-w-5xl px-gutter pb-32 pt-6 lg:px-10 lg:pb-16 lg:pt-10">
-        {children}
-      </main>
+      <AppNav appName={APP_NAME} signOut={signOutButton}>
+        <main
+          id="main"
+          tabIndex={-1}
+          className="mx-auto w-full min-w-0 max-w-5xl px-gutter pb-32 pt-6 focus:outline-none lg:px-10 lg:pb-16 lg:pt-10"
+        >
+          {children}
+        </main>
+      </AppNav>
       <AppearanceSync
         appearance={user?.appearance ? normalizeAppearance(user.appearance) : null}
       />

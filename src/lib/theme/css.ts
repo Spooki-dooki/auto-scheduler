@@ -1,5 +1,6 @@
 import { themeColors } from "./palette";
 import {
+  MAX_SCALE,
   THEME_NAMES,
   TOUCH_MIN,
   accents,
@@ -64,7 +65,10 @@ function themeVars(name: ThemeName): Record<string, string | number> {
     const font = FONT[t.font];
     vars[`t-${role}-family`] = font.family;
     vars[`t-${role}-weight`] = font.weight;
-    vars[`t-${role}-size`] = rem(t.size);
+    // In rem so the browser's text size scales it; the biggest roles stop
+    // growing at MAX_SCALE so a giant numeral never runs off a phone.
+    const cap = MAX_SCALE[role as keyof typeof MAX_SCALE];
+    vars[`t-${role}-size`] = cap ? `min(${rem(t.size)}, ${Math.round(t.size * cap)}px)` : rem(t.size);
     vars[`t-${role}-lh`] = ratio(t.lineHeight, t.size);
     vars[`t-${role}-ls`] = t.letterSpacing ? `${ratio(t.letterSpacing, t.size)}em` : "0";
     vars[`t-${role}-case`] = t.caps ? "uppercase" : "none";

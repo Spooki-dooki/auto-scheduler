@@ -21,7 +21,9 @@ const BUTTON: Record<ButtonVariant, string> = {
   secondary:
     "min-h-button rounded-control border-[length:var(--outline-width)] border-line-strong px-6 text-text hover:bg-pressed disabled:border-line disabled:text-muted",
   text: "min-h-touch rounded-control px-3 text-soft hover:text-text disabled:text-muted",
-  destructive: "min-h-touch rounded-control px-3 text-destructive hover:opacity-80",
+  // Quiet by default; hover underlines rather than fading, so the text keeps
+  // its contrast.
+  destructive: "min-h-touch rounded-control px-3 text-destructive hover:underline underline-offset-4",
 };
 
 export function buttonClass(variant: ButtonVariant = "primary", extra?: string): string {
@@ -123,10 +125,22 @@ export function Tag({
   );
 }
 
-/** A small inline problem or note: an icon and words, never color alone. */
-export function Notice({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+/**
+ * A small inline problem or note: an icon and words, never color alone.
+ * Errors are alerts, so a screen reader announces them as they appear; notes
+ * are plain text.
+ */
+export function Notice({
+  icon,
+  children,
+  tone = "note",
+}: {
+  icon: ReactNode;
+  children: ReactNode;
+  tone?: "note" | "error";
+}) {
   return (
-    <p role="status" className="flex items-start gap-2 t-small text-text">
+    <p role={tone === "error" ? "alert" : undefined} className="flex items-start gap-2 t-small text-text">
       <span className="mt-0.5 shrink-0 text-accent-ink" aria-hidden>
         {icon}
       </span>
@@ -146,7 +160,11 @@ export function ProgressBar({ value, label }: { value: number; label: string }) 
       aria-valuenow={pct}
       className="h-progress overflow-hidden rounded-chip bg-track momentum:rounded-none"
     >
-      <div className="h-full rounded-chip bg-accent momentum:rounded-none" style={{ width: `${pct}%` }} />
+      {/* Momentum's fill is close to its track, so it ends in a bright edge. */}
+      <div
+        className="h-full rounded-chip bg-accent momentum:rounded-none momentum:border-r-2 momentum:border-text"
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }

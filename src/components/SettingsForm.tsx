@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Button, Label, Notice, Surface, cx, inputClass } from "@/components/ui";
+import { zoneLabel } from "@/lib/format";
 
 type Calendar = { id: string; summary: string; primary: boolean };
 
@@ -38,6 +39,7 @@ export default function SettingsForm({
   const [timeZone, setTimeZone] = useState(initialTimeZone);
   const [calendarId, setCalendarId] = useState(initialCalendarId);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
+  const [calendarsFailed, setCalendarsFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,11 +52,16 @@ export default function SettingsForm({
     let cancelled = false;
 
     fetch("/api/calendars")
-      .then((response) => (response.ok ? response.json() : { calendars: [] }))
+      .then((response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        return response.json();
+      })
       .then((data) => {
         if (!cancelled) setCalendars(data.calendars ?? []);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setCalendarsFailed(true);
+      });
 
     return () => {
       cancelled = true;
@@ -106,7 +113,7 @@ export default function SettingsForm({
           >
             {supportedTimeZones(timeZone).map((zone) => (
               <option key={zone} value={zone}>
-                {zone.replace("_", " ")}
+                {zoneLabel(zone)}
               </option>
             ))}
           </select>
@@ -118,9 +125,9 @@ export default function SettingsForm({
                 setTimeZone(browserZone);
                 setSaved(false);
               }}
-              className="-ml-2 mt-1 inline-flex min-h-touch items-center rounded-control px-2 t-small text-accent-ink hover:underline"
+              className="-ml-2 mt-1 inline-flex min-h-touch items-center rounded-control px-2 t-small text-soft underline underline-offset-4 hover:text-text"
             >
-              Use {browserZone.replace("_", " ")} (this device)
+              Use {zoneLabel(browserZone)} (this device)
             </button>
           ) : null}
         </div>
@@ -138,7 +145,9 @@ export default function SettingsForm({
             className={cx(inputClass, "disabled:text-muted")}
           >
             {calendars.length === 0 ? (
-              <option value={calendarId}>{calendarId}</option>
+              <option value={calendarId}>
+                {calendarId === "primary" ? "Your main calendar" : calendarId}
+              </option>
             ) : (
               calendars.map((calendar) => (
                 <option key={calendar.id} value={calendar.id}>
@@ -148,13 +157,21 @@ export default function SettingsForm({
               ))
             )}
           </select>
+          {calendarsFailed ? (
+            <div className="mt-2">
+              <Notice tone="error" icon={<AlertCircle className="size-4" />}>
+                Couldn&apos;t load your calendars. Reconnect above to choose one.
+              </Notice>
+            </div>
+          ) : null}
           <p className="mt-2 t-small text-soft">
-            A separate calendar keeps auto-scheduled blocks easy to hide when you want to see only
-            what you put there yourself.
+            {connected
+              ? "A separate calendar keeps auto-scheduled blocks easy to hide when you want to see only what you put there yourself."
+              : "Available once a calendar is connected."}
           </p>
         </div>
 
-        {error ? <Notice icon={<AlertCircle className="size-4" />}>{error}</Notice> : null}
+        {error ? <Notice tone="error" icon={<AlertCircle className="size-4" />}>{error}</Notice> : null}
 
         <Button onClick={save} disabled={busy}>
           {saved ? <Check aria-hidden className="size-4" /> : null}

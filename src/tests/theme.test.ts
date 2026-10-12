@@ -9,7 +9,7 @@ import {
 import { AA_LARGE, AA_TEXT, contrast } from "@/lib/theme/contrast";
 import { themeStylesheet } from "@/lib/theme/css";
 import { themeColors, type ThemeColors } from "@/lib/theme/palette";
-import { THEME_NAMES, accents, palette, typeScale } from "@/lib/theme/tokens";
+import { MAX_SCALE, THEME_NAMES, accents, palette, typeScale } from "@/lib/theme/tokens";
 
 const ALL = THEME_NAMES.flatMap((name) =>
   accents[name].map((a) => [`${name}/${a.id}`, themeColors(name, a.id)] as const),
@@ -46,6 +46,20 @@ describe("WCAG AA for every pair the planner draws", () => {
     expect(contrast(c.textMuted, c.track, c.ground)).toBeGreaterThanOrEqual(AA_TEXT);
   });
 
+  it.each(ALL)("%s: tints drawn over the ground and raised surfaces", (_, c) => {
+    // The Calm "Now" tag, active tab and nav pill sit on ground and raised too.
+    for (const base of [c.ground, c.raised]) {
+      expect(contrast(c.selectedFg, c.selectedBg, base)).toBeGreaterThanOrEqual(AA_TEXT);
+    }
+  });
+
+  it.each(ALL)("%s: the progress fill can be told from its track", (name, c) => {
+    // Calm: the fill itself. Momentum's cobalt is too close to its track, so
+    // the fill carries a text-colored leading edge (ui.tsx, ProgressBar).
+    const edge = name.startsWith("momentum") ? c.text : c.accent;
+    expect(contrast(edge, c.track, c.ground)).toBeGreaterThanOrEqual(AA_LARGE);
+  });
+
   it.each(ALL)("%s: input edges, selection outlines and accent fills reach 3:1", (_, c) => {
     for (const bg of surfaces(c)) {
       expect(contrast(c.controlEdge, bg, c.ground)).toBeGreaterThanOrEqual(AA_LARGE);
@@ -69,7 +83,13 @@ describe("generated stylesheet", () => {
 
   it("sets every type role for both themes, in rem so browser text size scales it", () => {
     for (const role of Object.keys(typeScale.calm)) {
-      expect(css).toContain(`--t-${role}-size: ${typeScale.calm[role as keyof typeof typeScale.calm].size / 16}rem;`);
+      const size = typeScale.calm[role as keyof typeof typeScale.calm].size;
+      const cap = MAX_SCALE[role as keyof typeof MAX_SCALE];
+      expect(css).toContain(
+        cap
+          ? `--t-${role}-size: min(${size / 16}rem, ${Math.round(size * cap)}px);`
+          : `--t-${role}-size: ${size / 16}rem;`,
+      );
       expect(css).toContain(`--t-${role}-case:`);
     }
     expect(css).toContain("--t-label-case: uppercase;");

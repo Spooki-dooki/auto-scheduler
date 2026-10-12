@@ -1,28 +1,30 @@
-import { CalendarClock, ListTodo, Shuffle } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { buttonClass } from "@/components/ui";
+import { Surface, buttonClass, cx } from "@/components/ui";
 import { auth } from "@/lib/auth";
 import { APP_NAME } from "@/lib/copy";
 
-const points = [
-  {
-    Icon: ListTodo,
-    title: "Enter what you owe",
-    body: "A title, a deadline, and roughly how long it will take. That is the whole form.",
-  },
-  {
-    Icon: CalendarClock,
-    title: "It finds the time",
-    body: "Study hours, shifts, and class blocks are read from your Google Calendar, and work lands in the gaps.",
-  },
-  {
-    Icon: Shuffle,
-    title: "It moves when life does",
-    body: "Add a shift or a study group and everything competing for that slot slides out of the way.",
-  },
-];
+/** A worked example instead of feature columns: one task in, a week out. */
+const EXAMPLE = {
+  task: { title: "Bio 201 lab report", due: "Due Wed, 5:00 PM", length: "About 2.5 hours" },
+  days: [
+    {
+      day: "Mon",
+      rows: [
+        { time: "9:00 – 10:15 AM", title: "Chem 110 lecture", yours: true },
+        { time: "10:25 – 11:55 AM", title: "Bio 201 lab report", yours: false },
+      ],
+    },
+    {
+      day: "Tue",
+      rows: [
+        { time: "4:00 – 5:00 PM", title: "Bio 201 lab report", yours: false },
+        { time: "5:30 – 9:00 PM", title: "Café shift", yours: true },
+      ],
+    },
+  ],
+};
 
 export default async function HomePage() {
   const session = await auth();
@@ -44,15 +46,59 @@ export default async function HomePage() {
         Get started
       </Link>
 
-      <ul className="mt-16 grid gap-8 sm:grid-cols-3">
-        {points.map(({ Icon, title, body }) => (
-          <li key={title}>
-            <Icon aria-hidden className="size-6 text-soft" strokeWidth={1.75} />
-            <p className="mt-3 t-body-strong text-text">{title}</p>
-            <p className="mt-2 t-small text-soft">{body}</p>
-          </li>
-        ))}
-      </ul>
+      <section aria-labelledby="example-heading" className="mt-16">
+        <h2 id="example-heading" className="t-label text-muted">
+          For example
+        </h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          <Surface className="p-5">
+            <p className="t-small text-soft">You type</p>
+            <p className="mt-3 t-body-strong text-text">{EXAMPLE.task.title}</p>
+            <p className="mt-1 t-small text-soft">
+              {EXAMPLE.task.due} · {EXAMPLE.task.length}
+            </p>
+          </Surface>
+
+          <Surface className="p-5">
+            <p className="t-small text-soft">It plans, around what is already on your calendar</p>
+            <ol className="mt-3 space-y-4">
+              {EXAMPLE.days.map(({ day, rows }) => (
+                <li key={day} className="flex gap-4">
+                  <span className="w-10 shrink-0 t-label text-text">{day}</span>
+                  <ul className="min-w-0 flex-1 space-y-2">
+                    {rows.map((row) => (
+                      <li key={row.time} className="flex flex-col sm:flex-row sm:gap-3">
+                        <span className="shrink-0 t-small text-soft tabular sm:w-[8.5rem]">
+                          {row.time}
+                        </span>
+                        <span
+                          className={cx(
+                            "flex min-w-0 items-center gap-2 t-small",
+                            row.yours ? "text-muted" : "text-text",
+                          )}
+                        >
+                          <span
+                            aria-hidden
+                            className={cx(
+                              "size-2 shrink-0 rounded-full",
+                              row.yours ? "border border-line-strong" : "bg-accent",
+                            )}
+                          />
+                          {row.title}
+                          {row.yours ? <span className="sr-only">(already on your calendar)</span> : null}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ol>
+          </Surface>
+        </div>
+        <p className="mt-4 t-small text-soft">
+          Add a study group on Tuesday at 4 and that hour moves somewhere else before Wednesday.
+        </p>
+      </section>
     </main>
   );
 }
