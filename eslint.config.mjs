@@ -16,6 +16,8 @@ const config = [
       "next-env.d.ts",
       "playwright-report/**",
       "test-results/**",
+      // Vendored tooling (the Impeccable skill's bundled scripts), not app code.
+      ".claude/**",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
