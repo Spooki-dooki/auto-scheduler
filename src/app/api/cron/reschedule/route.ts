@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
+import { errorSummary } from "@/lib/log";
 import { runScheduler } from "@/lib/scheduler/run";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
       results.push({ userId: user.id, ok: true });
     } catch (error) {
       // One user's expired Google grant must not stop everyone else's run.
-      console.error(`[cron] scheduler failed for ${user.id}`, error);
+      console.error(`[cron] scheduler failed for ${user.id}`, errorSummary(error));
       results.push({
         userId: user.id,
         ok: false,

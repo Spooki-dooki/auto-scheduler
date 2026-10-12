@@ -3,6 +3,7 @@ import { calendar_v3, google } from "googleapis";
 
 import { encryptNullable, decryptNullable } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
+import { errorSummary } from "@/lib/log";
 import type { Interval } from "@/lib/scheduler/types";
 
 /** Marks an event as ours so we can move or remove it later without touching
@@ -75,7 +76,7 @@ export async function getGoogleAuth(userId: string): Promise<OAuth2Client> {
         },
       })
       .catch((error) => {
-        console.error("[google] failed to persist refreshed tokens", error);
+        console.error("[google] failed to persist refreshed tokens", errorSummary(error));
       });
   });
 
