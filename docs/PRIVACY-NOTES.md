@@ -1,7 +1,7 @@
 # Privacy notes: planner (auto-scheduler)
 
 What this code collects, where it goes, and why, written from the code as it
-is on 2026-10-11. This is the factual basis for a future privacy policy, not
+is on 2026-10-12. This is the factual basis for a future privacy policy, not
 the policy itself.
 
 ## Stored in our database (Postgres)
@@ -15,6 +15,14 @@ the policy itself.
 | Task blocks: start/end times, Google event ID | To move or remove the events we created | |
 | "Hours" profiles and their weekly windows | Where tasks may be placed | |
 | Time zone and which calendar to write to | Scheduling math | |
+| Appearance: theme (Calm or Momentum) and accent color | Draws the planner (and later the phone app) the way the user picked | |
+
+## Stored in the browser
+
+| Data | Why |
+|---|---|
+| Login session cookie | Keeps the user signed in |
+| `appearance` cookie, e.g. `momentum.apricot.cobalt` | So the first paint of every page is already in the chosen theme. Not used for tracking; holds only the theme and accent names. |
 
 ## Read from Google, not stored
 
@@ -35,7 +43,9 @@ the policy itself.
 ## Not collected
 
 No analytics, no AI calls, no location, no contacts, no event titles from
-the user's own calendar events.
+the user's own calendar events. The fonts are served from our own domain
+(next/font downloads them when the app is built), so opening a page sends
+nothing to Google Fonts.
 
 ## Gaps to close before real users
 

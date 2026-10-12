@@ -87,6 +87,79 @@ a recommendation only and has not been acted on.
   are reviewable and repeatable.
 - **When:** Phase 1, before connecting a hosted database used by anyone.
 
+## Phase 0.5 decisions: design system and theme switch (2026-10-12)
+
+### P-9. Tokens in one file, turned into CSS variables
+
+- **What:** `src/lib/theme/tokens.ts` holds DESIGN.md's colors, type,
+  radii and sizes (the same file as the phone app's, apart from comments).
+  `css.ts` turns them into one block of CSS variables per theme and accent
+  (`[data-theme="momentum"][data-accent="crimson"] { --accent: ... }`),
+  inlined by the root layout. `globals.css` maps the variables to Tailwind
+  utilities (`bg-ground`, `text-soft`, `rounded-card`, `t-heading`) and
+  writes no color itself.
+- **Why:** one source per app; switching theme is changing two attributes;
+  any element can carry its own theme, which is how the Appearance
+  previews show the other one with the real classes.
+- **Alternatives:** two hand-written CSS files (drift); a CSS-in-JS
+  library (more dependencies for the same result).
+- **Verified:** 26 new tests (contrast for every pair in both themes and
+  all six accents, the stylesheet, the cookie), screenshots of every page
+  in both themes at 375, 430 and 1280.
+
+### P-10. Appearance is saved on the account, cached in a cookie
+
+- **What:** a nullable `User.appearance` JSON column (added with
+  `prisma db push`; a new optional column, nothing existing changes).
+  `PATCH /api/appearance` saves it and sets an `appearance` cookie; the
+  root layout reads the cookie so the first paint is already in the right
+  theme. If the account and the cookie disagree (a new device), the
+  account wins and the cookie is refreshed.
+- **Why:** DESIGN.md: "persists per user (synced to the account, cached
+  on device)". The phone app will read the same column once it signs in
+  (X-2).
+- **Switch:** instant; the View Transitions API crossfades it in 200 ms
+  where the browser supports it, and it switches instantly with reduced
+  motion.
+
+### P-11. Fonts with next/font, self-hosted
+
+- Bricolage Grotesque, Hanken Grotesk, Barlow, Barlow Condensed, only the
+  weights used. Downloaded at build time and served from our own domain;
+  nothing is requested from Google when someone opens a page. Type sizes
+  are in rem, so the browser's text-size setting scales them.
+
+### P-12. Navigation: sidebar on wide screens, tab bar on phones
+
+- DESIGN.md: "side navigation that collapses to the same destinations on
+  phones". The three existing destinations (Schedule, Hours, Settings) are
+  unchanged; on phones they sit in a bottom bar drawn like the phone
+  app's (Calm pill with icons, Momentum caps with an accent underline).
+- On the Schedule page, "Add a task" now comes first on phones (it was at
+  the very bottom, under the whole week and task list). Wide screens keep
+  it beside the week.
+
+### P-13. Copy and color changes that came with the restyle
+
+- No red or amber for late or unfitted tasks, no red "High" tag: words
+  and an icon instead. "overdue" became "due date passed". Delete asks
+  first (it deleted on one tap).
+- The product name comes from one constant, `APP_NAME` in
+  `src/lib/copy.ts`, set to "Achieve It", the merged product's working
+  name; it said "Auto-Scheduler" in three places.
+- Profile ("Hours") colors stay as they are: they are the user's own
+  category colors, shown only as small dots.
+- **Bug fixed on the way:** a deadline earlier today, or late yesterday,
+  read "today" (the day count was rounded toward zero).
+
+### P-14. Icons from lucide-react; Playwright as a dev dependency
+
+- lucide-react: one consistent outline icon set on the web (the phone
+  uses SF Symbols). Playwright 1.56.1 runs `scripts/screenshots.mjs` and
+  `scripts/check-appearance.mjs`; `scripts/seed-preview.mjs` fills a
+  **local** database with two sample accounts (it refuses to run against
+  anything but localhost). Phase 1 turns these into real end-to-end tests.
+
 ## Cross-cutting decisions (brief section 12)
 
 This section is kept identical in both repos until they are merged.
@@ -220,3 +293,14 @@ This section is kept identical in both repos until they are merged.
 - **Decision:** shared logic takes the time zone as an explicit argument
   (the account's zone). The phone offers to update the account zone when it
   notices the device zone changed.
+
+### X-8. Both apps use the same tokens (done by copy; share them later)
+
+- **Status:** done for Phase 0.5. `achieve-it/src/theme/tokens.ts` and
+  `auto-scheduler/src/lib/theme/tokens.ts` hold the same values (only
+  their header comments differ), and both apps test them for contrast.
+- **Next:** with the monorepo (X-3), move `tokens.ts`, `contrast.ts`, the
+  appearance setting and their tests into `packages/core` unchanged (they
+  have no React Native or Next.js imports). Until then, a change to one
+  must be made to the other.
+
