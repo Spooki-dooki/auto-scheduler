@@ -18,7 +18,10 @@ export function formatDeadline(deadline: Date | string, timeZone: string): strin
 
   const absolute = dt.toFormat("ccc d LLL, h:mm a");
 
-  if (days < 0) return `${absolute} · overdue`;
+  // "Due date passed", not "overdue": no red piles, no guilt (brief, principle
+  // 5). Compared as instants: rounding the day count made a deadline earlier
+  // today (or late yesterday) read "today".
+  if (dt < now) return `${absolute} · due date passed`;
   if (days === 0) return `${absolute} · today`;
   if (days === 1) return `${absolute} · tomorrow`;
   return `${absolute} · in ${days} days`;
