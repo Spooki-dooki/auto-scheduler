@@ -19,6 +19,7 @@ import {
   type Interval,
   type PlacementTask,
   type PlannedBlock,
+  type Shortfall,
 } from "@/lib/scheduler/types";
 
 /** How far ahead the scheduler will ever look, regardless of deadlines. */
@@ -40,96 +41,72 @@ export type RunSummary = {
   ranAt: Date;
 };
 
+/** One task as the planner needs it. */
+export type PlanTask = {
+  id: string;
+  title: string;
+  deadline: Date;
+  durationMinutes: number;
+  priority: number;
+  minBlockMinutes: number;
+  maxBlockMinutes: number;
+  profileId: string | null;
+  createdAt: Date;
+  blocks: Array<{ start: Date; end: Date }>;
+};
+
+export type PlanInput = {
+  nowMs: number;
+  timeZone: string;
+  profiles: ProfileSpec[];
+  tasks: PlanTask[];
+  horizonEnd: Date;
+  /**
+   * Busy time read from the user's calendars. Empty when no calendar is
+   * connected: then tasks go into the user's own hours as if they were free,
+   * and the app says so.
+   */
+  calendarBusy: Interval[];
+};
+
+export type Plan = {
+  plannedByTask: Map<string, PlannedBlock[]>;
+  shortfalls: Shortfall[];
+  remainingByTask: Map<string, number>;
+};
+
 /**
- * Recomputes the whole future schedule for one user and mirrors it to Google
- * Calendar.
- *
- * Idempotent: running it twice with nothing changed produces no calendar writes.
- * Blocks that have already started are treated as history — they are never
- * moved, and the time they covered counts toward the task's duration.
+ * The pure part of a run: where every unfinished task should go. No database,
+ * no Google. Blocks that have started are history: never moved, and the time
+ * they covered counts toward the task.
  */
-export async function runScheduler(userId: string): Promise<RunSummary> {
-  const now = new Date();
-  const nowMs = now.getTime();
+export function planSchedule(input: PlanInput): Plan {
+  const { nowMs, timeZone, profiles, tasks, horizonEnd, calendarBusy } = input;
 
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, timeZone: true, calendarId: true },
-  });
-  if (!user) throw new Error(`No such user: ${userId}`);
-
-  const [profiles, tasks] = await Promise.all([
-    prisma.profile.findMany({
-      where: { userId },
-      include: { windows: true },
-      orderBy: { sortOrder: "asc" },
-    }),
-    prisma.task.findMany({
-      where: { userId, status: { in: ACTIVE_STATUSES } },
-      include: { blocks: { orderBy: { start: "asc" } } },
-    }),
-  ]);
-
-  const calendar = await getCalendarClient(userId);
-
-  // Clean up anything still on the calendar for tasks that are done or archived.
-  const blocksRemovedFromClosedTasks = await removeFutureBlocksForClosedTasks(
-    calendar,
-    userId,
-    nowMs,
-  );
-
-  const horizonEnd = computeHorizonEnd(tasks.map((t) => t.deadline), nowMs);
-
-  // Everything already on the user's calendars...
-  const calendarIds = await listBusyCalendarIds(calendar, user.calendarId);
-  const rawBusy = await fetchBusyIntervals(
-    calendar,
-    calendarIds,
-    now,
-    horizonEnd,
-    user.timeZone,
-  );
-
-  // ...minus our own blocks that have not started, which are the very thing we
-  // are re-placing. A block already running stays busy.
+  // Our own blocks that have not started are the very thing being re-placed,
+  // so they don't count as busy. A block already running stays busy.
   const ownFutureBlocks: Interval[] = tasks.flatMap((task) =>
-    splitAtNow(task.blocks, nowMs)
-      .upcoming.map((block) => ({
-        start: block.start.getTime(),
-        end: block.end.getTime(),
-      })),
-  );
-  const busy = subtract(rawBusy, ownFutureBlocks);
-
-  const profileSpecs: ProfileSpec[] = profiles.map((profile) => ({
-    id: profile.id,
-    bufferMinutes: profile.bufferMinutes,
-    windows: profile.windows.map((w) => ({
-      dayOfWeek: w.dayOfWeek,
-      startMinute: w.startMinute,
-      endMinute: w.endMinute,
+    splitAtNow(task.blocks, nowMs).upcoming.map((block) => ({
+      start: block.start.getTime(),
+      end: block.end.getTime(),
     })),
-  }));
+  );
+  const busy = subtract(calendarBusy, ownFutureBlocks);
 
   const availability = buildProfileAvailability({
-    profiles: profileSpecs,
+    profiles,
     busy,
-    from: now,
+    from: new Date(nowMs),
     to: horizonEnd,
-    timeZone: user.timeZone,
+    timeZone,
   });
 
-  // Time already spent in blocks that have started counts toward the task.
   const remainingByTask = new Map<string, number>();
   const placementTasks: PlacementTask[] = [];
 
   for (const task of tasks) {
-    const elapsedMinutes = startedMinutes(task.blocks, nowMs);
-
-    const remaining = Math.max(0, task.durationMinutes - elapsedMinutes);
+    const remaining = Math.max(0, task.durationMinutes - startedMinutes(task.blocks, nowMs));
     remainingByTask.set(task.id, remaining);
-
     if (remaining <= 0) continue;
 
     placementTasks.push({
@@ -157,6 +134,114 @@ export async function runScheduler(userId: string): Promise<RunSummary> {
     list.push(block);
     plannedByTask.set(block.taskId, list);
   }
+
+  return { plannedByTask, shortfalls, remainingByTask };
+}
+
+/**
+ * Pairs a task's upcoming blocks with the new plan (earliest with earliest),
+ * so a re-plan moves blocks instead of deleting and recreating them.
+ */
+export function reconcileBlocks<B extends { id: string; start: Date; end: Date }>(
+  existing: B[],
+  wanted: PlannedBlock[],
+): {
+  move: Array<{ block: B; start: number; end: number }>;
+  keep: B[];
+  create: PlannedBlock[];
+  remove: B[];
+} {
+  const have = [...existing].sort((a, b) => a.start.getTime() - b.start.getTime());
+  const want = [...wanted].sort((a, b) => a.start - b.start);
+  const pairs = Math.min(have.length, want.length);
+  const move: Array<{ block: B; start: number; end: number }> = [];
+  const keep: B[] = [];
+  for (let i = 0; i < pairs; i += 1) {
+    const same = have[i].start.getTime() === want[i].start && have[i].end.getTime() === want[i].end;
+    if (same) keep.push(have[i]);
+    else move.push({ block: have[i], start: want[i].start, end: want[i].end });
+  }
+  return { move, keep, create: want.slice(pairs), remove: have.slice(pairs) };
+}
+
+/**
+ * Recomputes the whole future schedule for one user. With Google Calendar
+ * connected, it plans around everything on the user's calendars and mirrors
+ * the blocks there. Without it, it plans into the user's own hours right away
+ * and keeps the blocks in the app; connecting later puts them on the calendar.
+ *
+ * Idempotent: running it twice with nothing changed produces no writes.
+ */
+export async function runScheduler(userId: string): Promise<RunSummary> {
+  const now = new Date();
+  const nowMs = now.getTime();
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, timeZone: true, calendarId: true },
+  });
+  if (!user) throw new Error(`No such user: ${userId}`);
+
+  const [profiles, tasks] = await Promise.all([
+    prisma.profile.findMany({
+      where: { userId },
+      include: { windows: true },
+      orderBy: { sortOrder: "asc" },
+    }),
+    prisma.task.findMany({
+      where: { userId, status: { in: ACTIVE_STATUSES } },
+      include: { blocks: { orderBy: { start: "asc" } } },
+    }),
+  ]);
+
+  let calendar: calendar_v3.Calendar | null = null;
+  try {
+    calendar = await getCalendarClient(userId);
+  } catch (error) {
+    if (!(error instanceof GoogleNotConnectedError)) throw error;
+  }
+
+  const profileSpecs: ProfileSpec[] = profiles.map((profile) => ({
+    id: profile.id,
+    bufferMinutes: profile.bufferMinutes,
+    windows: profile.windows.map((w) => ({
+      dayOfWeek: w.dayOfWeek,
+      startMinute: w.startMinute,
+      endMinute: w.endMinute,
+    })),
+  }));
+
+  if (!calendar) {
+    return runWithoutCalendar({ userId, now, timeZone: user.timeZone, profiles: profileSpecs, tasks });
+  }
+
+  // Clean up anything still on the calendar for tasks that are done or archived.
+  const blocksRemovedFromClosedTasks = await removeFutureBlocksForClosedTasks(
+    calendar,
+    userId,
+    nowMs,
+  );
+
+  const horizonEnd = computeHorizonEnd(tasks.map((t) => t.deadline), nowMs);
+
+  // Everything already on the user's calendars...
+  const calendarIds = await listBusyCalendarIds(calendar, user.calendarId);
+  const rawBusy = await fetchBusyIntervals(
+    calendar,
+    calendarIds,
+    now,
+    horizonEnd,
+    user.timeZone,
+  );
+
+  const { plannedByTask, shortfalls, remainingByTask } = planSchedule({
+    nowMs,
+    timeZone: user.timeZone,
+    profiles: profileSpecs,
+    tasks,
+    horizonEnd,
+    calendarBusy: rawBusy,
+  });
 
   // Which of our events actually still exist in Google right now.
   const liveEvents = await listAutoScheduledEvents(
@@ -217,6 +302,101 @@ export async function runScheduler(userId: string): Promise<RunSummary> {
   };
 }
 
+/**
+ * The no-calendar path: plan into the user's own hours (nothing is known to
+ * be busy) and keep the blocks in the database. Nothing is sent anywhere.
+ */
+async function runWithoutCalendar(input: {
+  userId: string;
+  now: Date;
+  timeZone: string;
+  profiles: ProfileSpec[];
+  tasks: Array<PlanTask & { id: string; userId: string; status: TaskStatus; blocks: Array<{ id: string; start: Date; end: Date; calendarId: string }> }>;
+}): Promise<RunSummary> {
+  const { userId, now, timeZone, profiles, tasks } = input;
+  const nowMs = now.getTime();
+
+  // Finished or archived tasks give their future time back.
+  const stale = await prisma.taskBlock.deleteMany({
+    where: {
+      userId,
+      start: { gt: now },
+      task: { status: { in: [TaskStatus.COMPLETED, TaskStatus.ARCHIVED] } },
+    },
+  });
+
+  const horizonEnd = computeHorizonEnd(tasks.map((t) => t.deadline), nowMs);
+  const { plannedByTask, shortfalls, remainingByTask } = planSchedule({
+    nowMs,
+    timeZone,
+    profiles,
+    tasks,
+    horizonEnd,
+    calendarBusy: [],
+  });
+
+  let created = 0;
+  let moved = 0;
+  let removed = stale.count;
+
+  for (const task of tasks) {
+    const wanted = plannedByTask.get(task.id) ?? [];
+    const plan = reconcileBlocks(splitAtNow(task.blocks, nowMs).upcoming, wanted);
+
+    for (const { block, start, end } of plan.move) {
+      await prisma.taskBlock.update({
+        where: { id: block.id },
+        data: { start: new Date(start), end: new Date(end) },
+      });
+      moved += 1;
+    }
+    for (const target of plan.create) {
+      await prisma.taskBlock.create({
+        data: {
+          taskId: task.id,
+          userId,
+          start: new Date(target.start),
+          end: new Date(target.end),
+          synced: false,
+        },
+      });
+      created += 1;
+    }
+    for (const block of plan.remove) {
+      await prisma.taskBlock.delete({ where: { id: block.id } });
+      removed += 1;
+    }
+
+    const shortfall = shortfalls.find((s) => s.taskId === task.id);
+    const remaining = remainingByTask.get(task.id) ?? task.durationMinutes;
+    await prisma.task.update({
+      where: { id: task.id },
+      data: {
+        shortfallMinutes: shortfall?.missingMinutes ?? 0,
+        status: shortfall
+          ? TaskStatus.UNSCHEDULABLE
+          : wanted.length > 0 || remaining <= 0
+            ? TaskStatus.SCHEDULED
+            : TaskStatus.PENDING,
+      },
+    });
+  }
+
+  return {
+    userId,
+    scheduledTasks: plannedByTask.size,
+    blocksCreated: created,
+    blocksMoved: moved,
+    blocksRemoved: removed,
+    shortfalls: shortfalls.map((s) => ({
+      taskId: s.taskId,
+      title: tasks.find((t) => t.id === s.taskId)?.title ?? "",
+      missingMinutes: s.missingMinutes,
+    })),
+    ranAt: now,
+  };
+}
+
 /** Runs the scheduler for a user, swallowing a missing Google connection. */
 export async function tryRunScheduler(
   userId: string,
@@ -231,7 +411,7 @@ export async function tryRunScheduler(
 
 // ---------------------------------------------------------------------------
 
-function computeHorizonEnd(deadlines: Date[], nowMs: number): Date {
+export function computeHorizonEnd(deadlines: Date[], nowMs: number): Date {
   const cap = nowMs + MAX_HORIZON_DAYS * 24 * 60 * 60 * 1000;
   const latest = deadlines.reduce(
     (max, deadline) => Math.max(max, deadline.getTime()),
