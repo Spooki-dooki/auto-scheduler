@@ -1,21 +1,213 @@
 @import "tailwindcss";
 
-@theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+/* `calm:` and `momentum:` variants for the app chrome. Theme previews nest a
+   second data-theme, so components inside a preview use only variables. */
+@custom-variant calm (&:where([data-theme="calm"], [data-theme="calm"] *));
+@custom-variant momentum (&:where([data-theme="momentum"], [data-theme="momentum"] *));
+
+/*
+ * Design tokens come from src/lib/theme/tokens.ts (DESIGN.md), turned into
+ * custom properties by src/lib/theme/css.ts and inlined by the root layout.
+ * This block only maps them to Tailwind utilities (bg-ground, text-soft,
+ * rounded-card...), so no color or size is written in this file.
+ */
+@theme inline {
+  --color-ground: var(--ground);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-track: var(--track);
+  --color-text: var(--text);
+  --color-soft: var(--text-soft);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-selected: var(--selected-bg);
+  --color-selected-fg: var(--selected-fg);
+  --color-selected-border: var(--selected-border);
+  --color-control-edge: var(--control-edge);
+  --color-pressed: var(--pressed);
+  --color-destructive: var(--destructive);
+
+  --radius-card: var(--radius-card);
+  --radius-tile: var(--radius-tile);
+  --radius-control: var(--radius-control);
+  --radius-chip: var(--radius-chip);
+  --radius-input: var(--radius-input);
+  --radius-cell: var(--radius-cell);
+  --radius-glyph: var(--radius-glyph);
+
+  --spacing-gutter: var(--gutter);
+  --spacing-touch: var(--touch-min);
+  --spacing-button: var(--button-height);
+  --spacing-progress: var(--progress-height);
+}
+
+/* Type roles from DESIGN.md. Values per theme come from css.ts. */
+@utility t-display {
+  font-family: var(--t-display-family);
+  font-weight: var(--t-display-weight);
+  font-size: var(--t-display-size);
+  line-height: var(--t-display-lh);
+  letter-spacing: var(--t-display-ls);
+  text-transform: var(--t-display-case);
+}
+
+@utility t-title {
+  font-family: var(--t-title-family);
+  font-weight: var(--t-title-weight);
+  font-size: var(--t-title-size);
+  line-height: var(--t-title-lh);
+  letter-spacing: var(--t-title-ls);
+  text-transform: var(--t-title-case);
+}
+
+@utility t-heading {
+  font-family: var(--t-heading-family);
+  font-weight: var(--t-heading-weight);
+  font-size: var(--t-heading-size);
+  line-height: var(--t-heading-lh);
+  letter-spacing: var(--t-heading-ls);
+  text-transform: var(--t-heading-case);
+}
+
+@utility t-body {
+  font-family: var(--t-body-family);
+  font-weight: var(--t-body-weight);
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-lh);
+  letter-spacing: var(--t-body-ls);
+  text-transform: var(--t-body-case);
+}
+
+@utility t-body-strong {
+  font-family: var(--t-bodyStrong-family);
+  font-weight: var(--t-bodyStrong-weight);
+  font-size: var(--t-bodyStrong-size);
+  line-height: var(--t-bodyStrong-lh);
+  letter-spacing: var(--t-bodyStrong-ls);
+  text-transform: var(--t-bodyStrong-case);
+}
+
+@utility t-small {
+  font-family: var(--t-small-family);
+  font-weight: var(--t-small-weight);
+  font-size: var(--t-small-size);
+  line-height: var(--t-small-lh);
+  letter-spacing: var(--t-small-ls);
+  text-transform: var(--t-small-case);
+}
+
+@utility t-label {
+  font-family: var(--t-label-family);
+  font-weight: var(--t-label-weight);
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-lh);
+  letter-spacing: var(--t-label-ls);
+  text-transform: var(--t-label-case);
+}
+
+@utility t-caption {
+  font-family: var(--t-caption-family);
+  font-weight: var(--t-caption-weight);
+  font-size: var(--t-caption-size);
+  line-height: var(--t-caption-lh);
+  letter-spacing: var(--t-caption-ls);
+  text-transform: var(--t-caption-case);
+}
+
+@utility t-numeral {
+  font-family: var(--t-numeral-family);
+  font-weight: var(--t-numeral-weight);
+  font-size: var(--t-numeral-size);
+  line-height: var(--t-numeral-lh);
+  letter-spacing: var(--t-numeral-ls);
+  text-transform: var(--t-numeral-case);
+}
+
+@utility t-button {
+  font-family: var(--t-button-family);
+  font-weight: var(--t-button-weight);
+  font-size: var(--t-button-size);
+  line-height: var(--t-button-lh);
+  letter-spacing: var(--t-button-ls);
+  text-transform: var(--t-button-case);
 }
 
 :root {
-  color-scheme: light;
+  /* Both themes are dark-only for now (DESIGN.md); native pickers, selects
+     and scrollbars follow. */
+  color-scheme: dark;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  background-color: var(--ground);
+  color: var(--text);
+  font-family: var(--t-body-family);
+  font-weight: var(--t-body-weight);
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-lh);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  caret-color: var(--accent);
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+::selection {
+  background-color: var(--selected-bg);
+  color: var(--text);
+}
+
+/* One focus ring for every control, in the theme's readable accent. */
+:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
 }
 
 /* Native date/time inputs are the fastest path to a correct deadline on both
    desktop and phones, so they are styled rather than replaced. */
 input[type="datetime-local"],
 input[type="time"] {
-  @apply appearance-none;
+  appearance: none;
+}
+
+/* Switching theme crossfades the whole page (DESIGN.md: 200ms), or switches
+   instantly when the visitor prefers reduced motion. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--motion-theme);
+  animation-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+  }
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
 }

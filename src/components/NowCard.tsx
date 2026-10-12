@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { ProgressBar, SectionLabel, Surface, Tag } from "@/components/ui";
 import { formatRange } from "@/lib/format";
 import type { BlockView } from "@/components/types";
 
@@ -27,7 +28,7 @@ export default function NowCard({
   }, []);
 
   if (now === null) {
-    return <div className="h-28 rounded-xl border border-slate-200 bg-white" />;
+    return <Surface size="card" tone="raised" className="h-40" />;
   }
 
   const sorted = [...blocks].sort(
@@ -43,44 +44,48 @@ export default function NowCard({
 
   if (!block) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-6">
-        <p className="text-xs font-medium uppercase tracking-widest text-slate-400">
-          Right now
-        </p>
-        <p className="mt-2 text-lg font-medium text-slate-900">Nothing scheduled.</p>
-        <p className="mt-1 text-sm text-slate-600">
+      <Surface size="card" tone="raised">
+        <Tag tone="accent">Now</Tag>
+        <p className="mt-4 t-heading text-text">Nothing scheduled.</p>
+        <p className="mt-2 t-small text-soft">
           Add a task and it will be placed in your next open slot.
         </p>
-      </div>
+      </Surface>
     );
   }
 
-  const minutesAway = Math.round(
-    (new Date(block.start).getTime() - now) / 60_000,
-  );
+  const start = new Date(block.start).getTime();
+  const end = new Date(block.end).getTime();
+  const minutesAway = Math.round((start - now) / 60_000);
+  const minutesLeft = Math.max(0, Math.round((end - now) / 60_000));
 
   return (
-    <div
-      className="rounded-xl border bg-white p-6"
-      style={{ borderColor: block.color }}
-    >
-      <p className="text-xs font-medium uppercase tracking-widest text-slate-400">
-        {current ? "Right now" : "Up next"}
-      </p>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-        {block.title}
-      </p>
-      <p className="mt-1 text-sm text-slate-600">
+    <Surface size="card" tone="raised">
+      <div className="flex items-center gap-3">
+        <Tag tone="accent">{current ? "Now" : "Up next"}</Tag>
+        <span
+          aria-hidden
+          className="size-2.5 rounded-full"
+          style={{ backgroundColor: block.color }}
+        />
+      </div>
+      <p className="mt-4 t-title text-text">{block.title}</p>
+      <p className="mt-2 t-body text-soft tabular">
         {formatRange(block.start, block.end, timeZone)}
-        {current
-          ? ` · ${Math.max(
-              0,
-              Math.round((new Date(block.end).getTime() - now) / 60_000),
-            )} min left`
-          : minutesAway < 60
-            ? ` · starts in ${minutesAway} min`
-            : ""}
       </p>
-    </div>
+      {current ? (
+        <div className="mt-5">
+          <ProgressBar
+            value={(now - start) / (end - start)}
+            label={`${minutesLeft} minutes left`}
+          />
+          <SectionLabel as="p" className="mt-2 tabular">
+            {minutesLeft} minutes left
+          </SectionLabel>
+        </div>
+      ) : minutesAway < 60 ? (
+        <p className="mt-2 t-small text-soft tabular">Starts in {minutesAway} minutes.</p>
+      ) : null}
+    </Surface>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
+import { AlertCircle, ChevronDown } from "lucide-react";
 import { DateTime } from "luxon";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button, Label, Notice, cx, inputClass } from "@/components/ui";
 import { PRIORITY_LABELS } from "@/lib/format";
 import type { ProfileOption } from "@/components/types";
 
@@ -74,79 +76,73 @@ export default function AddTaskForm({
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? "Could not save the task");
+        throw new Error(body.error ?? "Couldn't save the task. Try again.");
       }
 
       setTitle("");
       setDeadline(defaultDeadline(timeZone));
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not save the task");
+      setError(cause instanceof Error ? cause.message : "Couldn't save the task. Try again.");
     } finally {
       setBusy(false);
     }
   }
 
-  const field =
-    "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
-  const label = "block text-xs font-medium uppercase tracking-wide text-slate-500";
-
   return (
-    <form
-      onSubmit={submit}
-      className="space-y-4 rounded-xl border border-slate-200 bg-white p-5"
-    >
-      <h2 className="text-sm font-semibold text-slate-900">Add a task</h2>
-
+    <form onSubmit={submit} className="space-y-5 rounded-tile bg-surface p-5">
+      <h2 className="t-heading text-text">Add a task</h2>
       <div>
-        <label className={label} htmlFor="title">
-          What is it
-        </label>
+        <Label htmlFor="title">What is it</Label>
         <input
           id="title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
           maxLength={200}
-          placeholder="Study for physics test"
-          className={`${field} mt-1`}
+          placeholder="Study for the physics test"
+          className={inputClass}
         />
       </div>
 
       <div>
-        <label className={label} htmlFor="deadline">
-          Due by
-        </label>
+        <Label htmlFor="deadline">Due by</Label>
         <input
           id="deadline"
           type="datetime-local"
           value={deadline}
           onChange={(e) => setDeadline(e.target.value)}
           required
-          className={`${field} mt-1`}
+          className={inputClass}
         />
       </div>
 
-      <div>
-        <label className={label} htmlFor="duration">
-          How long it takes
-        </label>
-        <div className="mt-1 flex flex-wrap gap-1.5">
-          {DURATION_PRESETS.map((preset) => (
-            <button
-              key={preset}
-              type="button"
-              onClick={() => setDurationMinutes(preset)}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
-                durationMinutes === preset
-                  ? "bg-indigo-600 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              {preset < 60 ? `${preset}m` : `${preset / 60}h`}
-            </button>
-          ))}
+      <fieldset>
+        <legend className="mb-2 t-small text-soft">How long it takes</legend>
+        <div className="flex flex-wrap gap-2">
+          {DURATION_PRESETS.map((preset) => {
+            const on = durationMinutes === preset;
+            return (
+              <button
+                key={preset}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setDurationMinutes(preset)}
+                className={cx(
+                  "min-h-touch min-w-touch rounded-chip px-4 t-small tabular transition-colors",
+                  on
+                    ? "border-[length:var(--outline-width)] border-selected-border bg-selected text-selected-fg"
+                    : "border border-transparent bg-raised text-soft hover:text-text",
+                )}
+              >
+                {preset < 60 ? `${preset}m` : `${preset / 60}h`}
+              </button>
+            );
+          })}
         </div>
+        <label htmlFor="duration" className="sr-only">
+          Minutes
+        </label>
         <input
           id="duration"
           type="number"
@@ -155,20 +151,18 @@ export default function AddTaskForm({
           step={5}
           value={durationMinutes}
           onChange={(e) => setDurationMinutes(Number(e.target.value))}
-          className={`${field} mt-2`}
+          className={cx(inputClass, "mt-3 tabular")}
         />
-      </div>
+      </fieldset>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={label} htmlFor="priority">
-            Priority
-          </label>
+          <Label htmlFor="priority">Priority</Label>
           <select
             id="priority"
             value={priority}
             onChange={(e) => setPriority(Number(e.target.value))}
-            className={`${field} mt-1`}
+            className={inputClass}
           >
             {Object.entries(PRIORITY_LABELS).map(([value, text]) => (
               <option key={value} value={value}>
@@ -179,14 +173,12 @@ export default function AddTaskForm({
         </div>
 
         <div>
-          <label className={label} htmlFor="profile">
-            Hours
-          </label>
+          <Label htmlFor="profile">Hours</Label>
           <select
             id="profile"
             value={profileId}
             onChange={(e) => onProfileChange(e.target.value)}
-            className={`${field} mt-1`}
+            className={inputClass}
           >
             {profiles.map((profile) => (
               <option key={profile.id} value={profile.id}>
@@ -199,18 +191,18 @@ export default function AddTaskForm({
 
       <button
         type="button"
+        aria-expanded={showAdvanced}
         onClick={() => setShowAdvanced((value) => !value)}
-        className="text-xs font-medium text-indigo-600 hover:text-indigo-500"
+        className="-ml-2 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-accent-ink hover:underline"
       >
         {showAdvanced ? "Hide" : "Show"} sitting length
+        <ChevronDown aria-hidden className={cx("size-4 transition-transform", showAdvanced && "rotate-180")} />
       </button>
 
       {showAdvanced ? (
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={label} htmlFor="minBlock">
-              Shortest sitting
-            </label>
+            <Label htmlFor="minBlock">Shortest sitting (min)</Label>
             <input
               id="minBlock"
               type="number"
@@ -218,13 +210,11 @@ export default function AddTaskForm({
               step={5}
               value={minBlockMinutes}
               onChange={(e) => setMinBlockMinutes(Number(e.target.value))}
-              className={`${field} mt-1`}
+              className={cx(inputClass, "tabular")}
             />
           </div>
           <div>
-            <label className={label} htmlFor="maxBlock">
-              Longest sitting
-            </label>
+            <Label htmlFor="maxBlock">Longest sitting (min)</Label>
             <input
               id="maxBlock"
               type="number"
@@ -232,21 +222,17 @@ export default function AddTaskForm({
               step={5}
               value={maxBlockMinutes}
               onChange={(e) => setMaxBlockMinutes(Number(e.target.value))}
-              className={`${field} mt-1`}
+              className={cx(inputClass, "tabular")}
             />
           </div>
         </div>
       ) : null}
 
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <Notice icon={<AlertCircle className="size-4" />}>{error}</Notice> : null}
 
-      <button
-        type="submit"
-        disabled={busy}
-        className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-      >
+      <Button type="submit" disabled={busy} className="w-full">
         {busy ? "Finding time…" : "Add and schedule"}
-      </button>
+      </Button>
     </form>
   );
 }

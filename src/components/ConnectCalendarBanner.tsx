@@ -1,5 +1,9 @@
+import { CalendarDays } from "lucide-react";
+
+import { Button, Surface } from "@/components/ui";
 import { signIn } from "@/lib/auth";
 
+/** Shown until Google Calendar is connected. Says what's missing, never alarms. */
 export default function ConnectCalendarBanner() {
   async function connect() {
     "use server";
@@ -7,22 +11,20 @@ export default function ConnectCalendarBanner() {
   }
 
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-      <h2 className="text-sm font-semibold text-amber-900">
-        Connect Google Calendar to start scheduling
-      </h2>
-      <p className="mt-1 text-sm leading-relaxed text-amber-800">
-        Tasks are saved, but nothing can be placed until the app can see your
-        free time and write blocks back.
-      </p>
-      <form action={connect} className="mt-4">
-        <button
-          type="submit"
-          className="rounded-lg bg-amber-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-800"
-        >
+    <Surface tone="raised" className="flex flex-col gap-4 sm:flex-row sm:items-center">
+      <CalendarDays aria-hidden className="size-6 shrink-0 text-accent-ink" strokeWidth={1.75} />
+      <div className="flex-1">
+        <h2 className="t-body-strong text-text">Connect Google Calendar to start scheduling</h2>
+        <p className="mt-1 t-small text-soft">
+          Your tasks are saved. Nothing can be placed until the app can see your free time and
+          write blocks back.
+        </p>
+      </div>
+      <form action={connect}>
+        <Button type="submit" className="w-full sm:w-auto">
           Connect Google Calendar
-        </button>
+        </Button>
       </form>
-    </div>
+    </Surface>
   );
 }

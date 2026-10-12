@@ -1,8 +1,10 @@
 "use client";
 
+import { AlertCircle, Check, ChevronDown, Info } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button, Notice, SectionLabel, Tag, cx } from "@/components/ui";
 import { formatDeadline, formatDuration, formatRange, PRIORITY_LABELS } from "@/lib/format";
 import type { TaskView } from "@/components/types";
 
@@ -16,15 +18,17 @@ export default function TaskList({
   timeZone: string;
 }) {
   return (
-    <section className="space-y-3">
-      <h2 className="text-sm font-semibold text-slate-900">Tasks</h2>
+    <section aria-labelledby="tasks-heading" className="space-y-3">
+      <SectionLabel>
+        <span id="tasks-heading">Tasks</span>
+      </SectionLabel>
 
       {tasks.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+        <p className="rounded-tile border border-dashed border-line-strong p-6 t-small text-soft">
           Nothing queued. Add a task and it lands on your calendar straight away.
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="divide-y divide-line calm:rounded-tile calm:bg-surface momentum:border-y momentum:border-line">
           {tasks.map((task) => (
             <TaskRow key={task.id} task={task} timeZone={timeZone} />
           ))}
@@ -32,11 +36,12 @@ export default function TaskList({
       )}
 
       {doneTasks.length > 0 ? (
-        <details className="pt-2">
-          <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-slate-500">
+        <details className="group pt-2">
+          <summary className="flex min-h-touch cursor-pointer list-none items-center gap-2 t-label text-muted hover:text-text">
+            <ChevronDown aria-hidden className="size-4 transition-transform group-open:rotate-180" />
             Done ({doneTasks.length})
           </summary>
-          <ul className="mt-2 space-y-2">
+          <ul className="mt-2 divide-y divide-line calm:rounded-tile calm:bg-surface momentum:border-y momentum:border-line">
             {doneTasks.map((task) => (
               <TaskRow key={task.id} task={task} timeZone={timeZone} />
             ))}
@@ -68,15 +73,20 @@ function TaskRow({ task, timeZone }: { task: TaskView; timeZone: string }) {
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error ?? "That did not work");
+        throw new Error(payload.error ?? "That didn't work. Try again.");
       }
 
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "That did not work");
+      setError(cause instanceof Error ? cause.message : "That didn't work. Try again.");
     } finally {
       setBusy(false);
     }
+  }
+
+  function remove() {
+    if (!confirm(`Delete "${task.title}"? Its blocks come off your calendar too.`)) return;
+    send("DELETE");
   }
 
   const futureBlocks = task.blocks.filter(
@@ -84,92 +94,91 @@ function TaskRow({ task, timeZone }: { task: TaskView; timeZone: string }) {
   );
 
   return (
-    <li className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex items-start gap-3">
-        <input
-          type="checkbox"
-          checked={done}
-          disabled={busy}
-          onChange={() =>
-            send("PATCH", { status: done ? "PENDING" : "COMPLETED" })
-          }
-          className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-          aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
-        />
+    <li className="flex items-start gap-2 py-3 calm:px-2">
+      {/* A 44pt target around a 24pt box. */}
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={done}
+        aria-label={done ? `Reopen ${task.title}` : `Complete ${task.title}`}
+        disabled={busy}
+        onClick={() => send("PATCH", { status: done ? "PENDING" : "COMPLETED" })}
+        className="grid size-touch shrink-0 place-items-center rounded-control disabled:opacity-50"
+      >
+        <span
+          className={cx(
+            "grid size-6 place-items-center border-[length:var(--outline-width)] calm:rounded-full momentum:rounded-cell",
+            done ? "border-accent bg-accent text-on-accent" : "border-control-edge",
+          )}
+        >
+          {done ? <Check aria-hidden className="size-4" strokeWidth={2.5} /> : null}
+        </span>
+      </button>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p
-              className={`text-sm font-medium ${
-                done ? "text-slate-400 line-through" : "text-slate-900"
-              }`}
-            >
-              {task.title}
-            </p>
-            {task.profile ? (
-              <span
-                className="rounded-full px-2 py-0.5 text-[11px] font-medium"
-                style={{
-                  backgroundColor: `${task.profile.color}1a`,
-                  color: task.profile.color,
-                }}
-              >
-                {task.profile.name}
-              </span>
-            ) : null}
-            {task.priority >= 3 ? (
-              <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600">
-                {PRIORITY_LABELS[task.priority]}
-              </span>
-            ) : null}
-          </div>
-
-          <p className="mt-1 text-xs text-slate-500">
-            {formatDuration(task.durationMinutes)} ·{" "}
-            {formatDeadline(task.deadline, timeZone)}
+      <div className="min-w-0 flex-1 pt-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className={cx("t-body-strong", done ? "text-muted line-through" : "text-text")}>
+            {task.title}
           </p>
-
-          {task.shortfallMinutes > 0 ? (
-            <p className="mt-2 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
-              {formatDuration(task.shortfallMinutes)} could not be fitted before
-              the deadline. Free up time, shorten it, or push the deadline.
-            </p>
+          {task.profile ? (
+            <span className="inline-flex items-center gap-1.5 t-caption text-soft">
+              <span
+                aria-hidden
+                className="size-2 rounded-full"
+                style={{ backgroundColor: task.profile.color }}
+              />
+              {task.profile.name}
+            </span>
           ) : null}
-
-          {futureBlocks.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setOpen((value) => !value)}
-              className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-500"
-            >
-              {futureBlocks.length} scheduled{" "}
-              {futureBlocks.length === 1 ? "block" : "blocks"}
-            </button>
-          ) : null}
-
-          {open ? (
-            <ul className="mt-2 space-y-1">
-              {futureBlocks.map((block) => (
-                <li key={block.id} className="text-xs text-slate-600">
-                  {formatRange(block.start, block.end, timeZone)}
-                  {block.synced ? "" : " · not on calendar yet"}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
+          {task.priority >= 3 ? <Tag>{PRIORITY_LABELS[task.priority]}</Tag> : null}
         </div>
 
-        <button
-          type="button"
-          onClick={() => send("DELETE")}
-          disabled={busy}
-          className="text-xs text-slate-400 transition hover:text-red-600 disabled:opacity-50"
-        >
-          Delete
-        </button>
+        <p className="mt-1 t-small text-soft tabular">
+          {formatDuration(task.durationMinutes)} · {formatDeadline(task.deadline, timeZone)}
+        </p>
+
+        {task.shortfallMinutes > 0 ? (
+          <div className="mt-2">
+            <Notice icon={<Info className="size-4" />}>
+              {formatDuration(task.shortfallMinutes)} didn&apos;t fit before the deadline. Free up
+              some time, shorten it, or move the deadline.
+            </Notice>
+          </div>
+        ) : null}
+
+        {futureBlocks.length > 0 ? (
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen((value) => !value)}
+            className="-ml-2 mt-1 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-accent-ink hover:underline"
+          >
+            {futureBlocks.length} scheduled {futureBlocks.length === 1 ? "block" : "blocks"}
+            <ChevronDown aria-hidden className={cx("size-4 transition-transform", open && "rotate-180")} />
+          </button>
+        ) : null}
+
+        {open ? (
+          <ul className="mt-1 space-y-1">
+            {futureBlocks.map((block) => (
+              <li key={block.id} className="t-small text-soft tabular">
+                {formatRange(block.start, block.end, timeZone)}
+                {block.synced ? "" : " · not on your calendar yet"}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {error ? (
+          <div className="mt-2">
+            <Notice icon={<AlertCircle className="size-4" />}>{error}</Notice>
+          </div>
+        ) : null}
       </div>
+
+      <Button variant="text" onClick={remove} disabled={busy} className="shrink-0">
+        Delete
+      </Button>
     </li>
   );
 }

@@ -1,8 +1,10 @@
 "use client";
 
+import { AlertCircle, Check, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button, Label, Notice, Surface, Tag, cx, inputBase, inputClass } from "@/components/ui";
 import { DAY_NAMES, labelToMinutes, minutesToLabel } from "@/lib/format";
 
 type WindowRow = { dayOfWeek: number; startMinute: number; endMinute: number };
@@ -19,8 +21,8 @@ type ProfileRow = {
   windows: WindowRow[];
 };
 
-const field =
-  "rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
+// Inputs that size to their content instead of filling the row.
+const field = inputBase;
 
 export default function ProfileEditor({ profiles }: { profiles: ProfileRow[] }) {
   const router = useRouter();
@@ -49,13 +51,13 @@ export default function ProfileEditor({ profiles }: { profiles: ProfileRow[] }) 
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? "Could not create that");
+        throw new Error(body.error ?? "Couldn't create that. Try again.");
       }
 
       setNewName("");
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not create that");
+      setError(cause instanceof Error ? cause.message : "Couldn't create that. Try again.");
     } finally {
       setCreating(false);
     }
@@ -69,33 +71,29 @@ export default function ProfileEditor({ profiles }: { profiles: ProfileRow[] }) 
 
       <form
         onSubmit={createProfile}
-        className="flex flex-wrap items-end gap-3 rounded-xl border border-dashed border-slate-300 p-4"
+        className="flex flex-wrap items-end gap-3 rounded-tile border border-dashed border-line-strong p-4"
       >
-        <div className="flex-1">
-          <label
-            className="block text-xs font-medium uppercase tracking-wide text-slate-500"
-            htmlFor="new-profile"
-          >
-            New set of hours
-          </label>
+        <div className="min-w-[12rem] flex-1">
+          <Label htmlFor="new-profile">New set of hours</Label>
           <input
             id="new-profile"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             required
             maxLength={60}
-            placeholder="Gym, Volunteering, Side project…"
-            className={`${field} mt-1 w-full`}
+            placeholder="Gym, volunteering, side project…"
+            className={inputClass}
           />
         </div>
-        <button
-          type="submit"
-          disabled={creating}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-50"
-        >
+        <Button type="submit" variant="secondary" disabled={creating}>
+          <Plus aria-hidden className="size-4" />
           Create
-        </button>
-        {error ? <p className="w-full text-xs text-red-600">{error}</p> : null}
+        </Button>
+        {error ? (
+          <div className="w-full">
+            <Notice icon={<AlertCircle className="size-4" />}>{error}</Notice>
+          </div>
+        ) : null}
       </form>
     </div>
   );
@@ -132,13 +130,13 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? "Could not save");
+        throw new Error(body.error ?? "Couldn't save. Try again.");
       }
 
       setSaved(true);
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not save");
+      setError(cause instanceof Error ? cause.message : "Couldn't save. Try again.");
     } finally {
       setBusy(false);
     }
@@ -155,43 +153,42 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
     router.refresh();
   }
 
+  const uid = profile.id;
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5">
+    <Surface className="p-5">
       <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
-            Name
-          </label>
+        <div className="min-w-[10rem] flex-1">
+          <Label htmlFor={`name-${uid}`}>Name</Label>
           <input
+            id={`name-${uid}`}
             value={name}
             onChange={(e) => {
               setName(e.target.value);
               setSaved(false);
             }}
-            className={`${field} mt-1`}
+            className={inputClass}
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
-            Colour
-          </label>
+          <Label htmlFor={`color-${uid}`}>Color</Label>
           <input
+            id={`color-${uid}`}
             type="color"
             value={color}
             onChange={(e) => {
               setColor(e.target.value);
               setSaved(false);
             }}
-            className="mt-1 h-[38px] w-14 cursor-pointer rounded-lg border border-slate-300"
+            className="h-button w-16 cursor-pointer rounded-input border border-control-edge bg-surface p-1"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium uppercase tracking-wide text-slate-500">
-            Buffer (min)
-          </label>
+          <Label htmlFor={`buffer-${uid}`}>Buffer (min)</Label>
           <input
+            id={`buffer-${uid}`}
             type="number"
             min={0}
             max={120}
@@ -201,37 +198,36 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
               setBufferMinutes(Number(e.target.value));
               setSaved(false);
             }}
-            className={`${field} mt-1 w-24`}
+            className={cx(field, "w-28 tabular")}
           />
         </div>
 
-        <div className="ml-auto flex items-center gap-3">
-          {profile.isDefault ? (
-            <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">
-              Default
-            </span>
-          ) : null}
-          <span className="text-xs text-slate-500">
+        <div className="flex min-h-button items-center gap-3 sm:ml-auto">
+          {profile.isDefault ? <Tag>Default</Tag> : null}
+          <span className="t-small text-soft tabular">
             {profile.taskCount} {profile.taskCount === 1 ? "task" : "tasks"}
           </span>
         </div>
       </div>
 
-      <div className="mt-5 space-y-2">
+      <fieldset className="mt-6 space-y-3">
+        <legend className="mb-2 t-label text-muted">Weekly hours</legend>
         {windows.length === 0 ? (
-          <p className="text-xs text-slate-500">
-            No hours yet — nothing can be scheduled here.
-          </p>
+          <p className="t-small text-soft">No hours yet, so nothing can be scheduled here.</p>
         ) : null}
 
         {windows.map((window, index) => (
           <div key={index} className="flex flex-wrap items-center gap-2">
+            <label className="sr-only" htmlFor={`day-${uid}-${index}`}>
+              Day
+            </label>
             <select
+              id={`day-${uid}-${index}`}
               value={window.dayOfWeek}
               onChange={(e) =>
                 updateWindow(index, { dayOfWeek: Number(e.target.value) })
               }
-              className={`${field} w-36`}
+              className={cx(field, "min-w-[9rem]")}
             >
               {DAY_NAMES.map((day, i) => (
                 <option key={day} value={i + 1}>
@@ -240,33 +236,42 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
               ))}
             </select>
 
+            <label className="sr-only" htmlFor={`start-${uid}-${index}`}>
+              From
+            </label>
             <input
+              id={`start-${uid}-${index}`}
               type="time"
               value={minutesToLabel(window.startMinute)}
               onChange={(e) =>
                 updateWindow(index, { startMinute: labelToMinutes(e.target.value) })
               }
-              className={field}
+              className={cx(field, "tabular")}
             />
-            <span className="text-sm text-slate-400">to</span>
+            <span className="t-small text-muted">to</span>
+            <label className="sr-only" htmlFor={`end-${uid}-${index}`}>
+              Until
+            </label>
             <input
+              id={`end-${uid}-${index}`}
               type="time"
               value={minutesToLabel(window.endMinute)}
               onChange={(e) =>
                 updateWindow(index, { endMinute: labelToMinutes(e.target.value) })
               }
-              className={field}
+              className={cx(field, "tabular")}
             />
 
             <button
               type="button"
+              aria-label={`Remove ${DAY_NAMES[window.dayOfWeek - 1] ?? "this"} window`}
               onClick={() => {
                 setWindows((rows) => rows.filter((_, i) => i !== index));
                 setSaved(false);
               }}
-              className="text-xs text-slate-400 transition hover:text-red-600"
+              className="grid size-touch place-items-center rounded-control text-soft hover:bg-pressed hover:text-text"
             >
-              Remove
+              <X aria-hidden className="size-4" />
             </button>
           </div>
         ))}
@@ -280,33 +285,25 @@ function ProfileCard({ profile }: { profile: ProfileRow }) {
             ]);
             setSaved(false);
           }}
-          className="text-xs font-medium text-indigo-600 hover:text-indigo-500"
+          className="-ml-2 inline-flex min-h-touch items-center gap-1 rounded-control px-2 t-small text-accent-ink hover:underline"
         >
+          <Plus aria-hidden className="size-4" />
           Add a window
         </button>
-      </div>
+      </fieldset>
 
-      <div className="mt-5 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={save}
-          disabled={busy}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
-        >
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <Button onClick={save} disabled={busy}>
+          {saved ? <Check aria-hidden className="size-4" /> : null}
           {busy ? "Saving…" : saved ? "Saved" : "Save and re-plan"}
-        </button>
+        </Button>
 
-        <button
-          type="button"
-          onClick={remove}
-          disabled={busy}
-          className="text-xs text-slate-400 transition hover:text-red-600 disabled:opacity-50"
-        >
+        <Button variant="destructive" onClick={remove} disabled={busy}>
           Delete
-        </button>
+        </Button>
 
-        {error ? <p className="text-xs text-red-600">{error}</p> : null}
+        {error ? <Notice icon={<AlertCircle className="size-4" />}>{error}</Notice> : null}
       </div>
-    </div>
+    </Surface>
   );
 }

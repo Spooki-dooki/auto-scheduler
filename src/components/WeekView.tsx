@@ -1,10 +1,14 @@
 import { DateTime } from "luxon";
 
+import { SectionLabel, cx } from "@/components/ui";
 import type { BlockView } from "@/components/types";
 
 const DAYS_SHOWN = 7;
 
-/** A simple agenda-per-day view: readable on a phone, no grid maths. */
+/**
+ * A simple agenda per day: readable on a phone, no grid maths. Calm draws one
+ * soft tile with dividers; Momentum draws hard rules between days.
+ */
 export default function WeekView({
   blocks,
   timeZone,
@@ -28,55 +32,56 @@ export default function WeekView({
   }
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-sm font-semibold text-slate-900">Next 7 days</h2>
+    <section aria-labelledby="week-heading" className="space-y-3">
+      <SectionLabel>
+        <span id="week-heading">Next 7 days</span>
+      </SectionLabel>
 
-      <div className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <ol className="divide-y divide-line overflow-hidden calm:rounded-tile calm:bg-surface momentum:border-y momentum:border-line">
         {days.map((day) => {
           const key = day.toISODate() ?? "";
+          const isToday = day.hasSame(today, "day");
           const dayBlocks = (byDay.get(key) ?? []).sort(
             (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
           );
 
           return (
-            <div key={key} className="flex gap-4 px-4 py-3">
-              <div className="w-24 shrink-0">
-                <p className="text-sm font-medium text-slate-900">
-                  {day.hasSame(today, "day") ? "Today" : day.toFormat("ccc")}
+            <li key={key} className="flex gap-4 py-3 calm:px-4">
+              <div className="w-20 shrink-0">
+                <p className={cx("t-label", isToday ? "text-accent-ink" : "text-text")}>
+                  {isToday ? "Today" : day.toFormat("ccc")}
                 </p>
-                <p className="text-xs text-slate-500">{day.toFormat("d LLL")}</p>
+                <p className="t-caption text-muted">{day.toFormat("d LLL")}</p>
               </div>
 
-              <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="min-w-0 flex-1 space-y-2">
                 {dayBlocks.length === 0 ? (
-                  <p className="text-xs text-slate-400">Clear</p>
+                  <p className="t-small text-muted">Clear</p>
                 ) : (
                   dayBlocks.map((block) => (
-                    <div
-                      key={block.id}
-                      className="flex items-baseline gap-2 rounded-md px-2 py-1.5"
-                      style={{ backgroundColor: `${block.color}14` }}
-                    >
-                      <span className="w-28 shrink-0 text-xs tabular-nums text-slate-500">
-                        {DateTime.fromISO(block.start)
-                          .setZone(timeZone)
-                          .toFormat("h:mm a")}
+                    // Phones stack the time over the title so titles aren't cut.
+                    <div key={block.id} className="flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
+                      <span className="shrink-0 t-small text-soft tabular sm:w-[9.5rem]">
+                        {DateTime.fromISO(block.start).setZone(timeZone).toFormat("h:mm a")}
                         {" – "}
-                        {DateTime.fromISO(block.end)
-                          .setZone(timeZone)
-                          .toFormat("h:mm a")}
+                        {DateTime.fromISO(block.end).setZone(timeZone).toFormat("h:mm a")}
                       </span>
-                      <span className="truncate text-sm text-slate-800">
-                        {block.title}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span
+                          aria-hidden
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: block.color }}
+                        />
+                        <span className="truncate t-small text-text">{block.title}</span>
                       </span>
                     </div>
                   ))
                 )}
               </div>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ol>
     </section>
   );
 }

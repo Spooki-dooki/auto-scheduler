@@ -66,7 +66,7 @@ export default async function DashboardPage() {
           ...block,
           taskId: task.id,
           title: task.title,
-          color: task.profile?.color ?? "#6366f1",
+          color: task.profile?.color ?? "var(--text-muted)",
         })),
   );
 
@@ -77,14 +77,14 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       {connected ? null : <ConnectCalendarBanner />}
 
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {user?.name ? `Hey ${user.name.split(" ")[0]}` : "Your week"}
+          <h1 className="t-display text-text">
+            {user?.name ? `Hey ${user.name.split(" ")[0]}.` : "Your week"}
           </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {openTasks.length} open {openTasks.length === 1 ? "task" : "tasks"} ·
-            times shown in {timeZone.replace("_", " ")}
+          <p className="mt-2 t-body text-soft">
+            {openTasks.length} open {openTasks.length === 1 ? "task" : "tasks"} · times in{" "}
+            {timeZone.replace("_", " ")}
           </p>
         </div>
         <RescheduleButton disabled={!connected} />
@@ -92,8 +92,8 @@ export default async function DashboardPage() {
 
       <NowCard blocks={blocks} timeZone={timeZone} />
 
-      <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]">
-        <div className="space-y-8">
+      <section className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]">
+        <div className="space-y-10">
           <WeekView blocks={blocks} timeZone={timeZone} />
           <TaskList
             tasks={openTasks}
@@ -102,7 +102,9 @@ export default async function DashboardPage() {
           />
         </div>
 
-        <aside>
+        {/* The one primary action comes first on phones, beside the week on
+            wide screens. */}
+        <aside className="order-first lg:sticky lg:top-10 lg:order-last lg:self-start">
           <AddTaskForm profiles={profiles} timeZone={timeZone} />
         </aside>
       </section>

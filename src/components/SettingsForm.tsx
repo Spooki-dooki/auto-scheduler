@@ -1,12 +1,12 @@
 "use client";
 
+import { AlertCircle, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type Calendar = { id: string; summary: string; primary: boolean };
+import { Button, Label, Notice, Surface, cx, inputClass } from "@/components/ui";
 
-const field =
-  "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100";
+type Calendar = { id: string; summary: string; primary: boolean };
 
 function supportedTimeZones(current: string): string[] {
   const intl = Intl as typeof Intl & {
@@ -74,103 +74,93 @@ export default function SettingsForm({
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error ?? "Could not save");
+        throw new Error(body.error ?? "Couldn't save. Try again.");
       }
 
       setSaved(true);
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not save");
+      setError(cause instanceof Error ? cause.message : "Couldn't save. Try again.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
-      <h2 className="text-sm font-semibold text-slate-900">Scheduling</h2>
+    <section aria-labelledby="scheduling-heading" className="space-y-4">
+      <h2 id="scheduling-heading" className="t-heading text-text">
+        Scheduling
+      </h2>
 
-      <div>
-        <label
-          className="block text-xs font-medium uppercase tracking-wide text-slate-500"
-          htmlFor="timezone"
-        >
-          Time zone
-        </label>
-        <select
-          id="timezone"
-          value={timeZone}
-          onChange={(e) => {
-            setTimeZone(e.target.value);
-            setSaved(false);
-          }}
-          className={`${field} mt-1`}
-        >
-          {supportedTimeZones(timeZone).map((zone) => (
-            <option key={zone} value={zone}>
-              {zone.replace("_", " ")}
-            </option>
-          ))}
-        </select>
-
-        {browserZone && browserZone !== timeZone ? (
-          <button
-            type="button"
-            onClick={() => {
-              setTimeZone(browserZone);
+      <Surface className="space-y-5 p-5">
+        <div>
+          <Label htmlFor="timezone">Time zone</Label>
+          <select
+            id="timezone"
+            value={timeZone}
+            onChange={(e) => {
+              setTimeZone(e.target.value);
               setSaved(false);
             }}
-            className="mt-2 text-xs font-medium text-indigo-600 hover:text-indigo-500"
+            className={inputClass}
           >
-            Use {browserZone.replace("_", " ")} (this device)
-          </button>
-        ) : null}
-      </div>
-
-      <div>
-        <label
-          className="block text-xs font-medium uppercase tracking-wide text-slate-500"
-          htmlFor="calendar"
-        >
-          Write blocks to
-        </label>
-        <select
-          id="calendar"
-          value={calendarId}
-          onChange={(e) => {
-            setCalendarId(e.target.value);
-            setSaved(false);
-          }}
-          disabled={!connected}
-          className={`${field} mt-1 disabled:bg-slate-50`}
-        >
-          {calendars.length === 0 ? (
-            <option value={calendarId}>{calendarId}</option>
-          ) : (
-            calendars.map((calendar) => (
-              <option key={calendar.id} value={calendar.id}>
-                {calendar.summary}
-                {calendar.primary ? " (primary)" : ""}
+            {supportedTimeZones(timeZone).map((zone) => (
+              <option key={zone} value={zone}>
+                {zone.replace("_", " ")}
               </option>
-            ))
-          )}
-        </select>
-        <p className="mt-2 text-xs leading-relaxed text-slate-500">
-          A separate calendar keeps auto-scheduled blocks easy to hide when you
-          want to see only what you put there yourself.
-        </p>
-      </div>
+            ))}
+          </select>
 
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+          {browserZone && browserZone !== timeZone ? (
+            <button
+              type="button"
+              onClick={() => {
+                setTimeZone(browserZone);
+                setSaved(false);
+              }}
+              className="-ml-2 mt-1 inline-flex min-h-touch items-center rounded-control px-2 t-small text-accent-ink hover:underline"
+            >
+              Use {browserZone.replace("_", " ")} (this device)
+            </button>
+          ) : null}
+        </div>
 
-      <button
-        type="button"
-        onClick={save}
-        disabled={busy}
-        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-50"
-      >
-        {busy ? "Saving…" : saved ? "Saved" : "Save and re-plan"}
-      </button>
+        <div>
+          <Label htmlFor="calendar">Write blocks to</Label>
+          <select
+            id="calendar"
+            value={calendarId}
+            onChange={(e) => {
+              setCalendarId(e.target.value);
+              setSaved(false);
+            }}
+            disabled={!connected}
+            className={cx(inputClass, "disabled:text-muted")}
+          >
+            {calendars.length === 0 ? (
+              <option value={calendarId}>{calendarId}</option>
+            ) : (
+              calendars.map((calendar) => (
+                <option key={calendar.id} value={calendar.id}>
+                  {calendar.summary}
+                  {calendar.primary ? " (primary)" : ""}
+                </option>
+              ))
+            )}
+          </select>
+          <p className="mt-2 t-small text-soft">
+            A separate calendar keeps auto-scheduled blocks easy to hide when you want to see only
+            what you put there yourself.
+          </p>
+        </div>
+
+        {error ? <Notice icon={<AlertCircle className="size-4" />}>{error}</Notice> : null}
+
+        <Button onClick={save} disabled={busy}>
+          {saved ? <Check aria-hidden className="size-4" /> : null}
+          {busy ? "Saving…" : saved ? "Saved" : "Save and re-plan"}
+        </Button>
+      </Surface>
     </section>
   );
 }
