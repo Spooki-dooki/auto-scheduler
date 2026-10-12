@@ -15,9 +15,15 @@ lives in the separate `achieve-it` repo. Product direction is in
   (black, white, one bold color), shared with the phone app. Switch in
   **Settings, Appearance**; it changes instantly and is saved to your
   account. Every page was redesigned for both, following `DESIGN.md`.
-- **Works and was checked:** installs, type-checks, lints, 60 tests pass,
-  builds, and runs against a database. Adding and completing tasks works.
-  Every page was looked at in both looks at phone and desktop widths
+- **New after review:** scheduling works **without** a calendar. Tasks go
+  straight into your own hours, and one quiet line asks you to connect a
+  calendar so the plan can avoid your classes and events. On phones the
+  plan comes first and adding is one "Add something…" field. Hours is one
+  line per day.
+- **Works and was checked:** installs, type-checks, lints, 85 tests pass,
+  builds, and runs against a database. Adding a task with no calendar
+  connected plans it on the spot (checked end to end in a browser). Every
+  page was looked at in both looks at phone and desktop widths
   (`docs/screens/2026-10-12-phase05-themes/`).
 - **Never run yet:** Google sign-in, reading your calendar, and writing
   blocks to it. Those need Google credentials that are not set up yet.
@@ -73,16 +79,20 @@ Never commit `.env.local`; it is ignored by git on purpose.
 | `npm run lint` | Check code style and common mistakes (fails on any warning) |
 | `npm run build` | Make a production build |
 | `npx prisma db push` | Apply the database schema (Phase 0.5 added one optional column, `User.appearance`) |
-| `node --env-file=.env.local scripts/seed-preview.mjs` | Fill a **local** database with two sample accounts for screenshots (refuses any non-local database) |
+| `node --env-file=.env.local scripts/seed-preview.mjs` | Fill a **local** database with three sample accounts for screenshots (refuses any non-local database) |
+| `node --env-file=.env.local scripts/check-no-calendar.mjs` | Adds a task on an account with no calendar, through the phone-width form, and checks it gets planned |
 | `node scripts/screenshots.mjs` | Screenshots of every page in both looks (see the top of the file) |
 | `node scripts/check-appearance.mjs` | Clicks through Settings, Appearance and checks the switch is instant, saved and remembered |
+| `node scripts/check-access.mjs` | Checks reflow at 320px and 200% text, keyboard focus, page titles and arrow keys |
 
 ## How the scheduler works
 
 `runScheduler(userId)` in `src/lib/scheduler/run.ts` does the whole job:
 
 1. **Read busy times** from every calendar you have selected, up to the
-   last deadline (at most 60 days ahead).
+   last deadline (at most 60 days ahead). With no calendar connected,
+   nothing is known to be busy: tasks go into your own hours, and the
+   blocks stay in the app until you connect one.
 2. **Leave out our own blocks that have not started yet**, because those are
    what is being re-placed. Blocks that have started, including the one you
    are in right now, stay put.
@@ -91,8 +101,8 @@ Never commit `.env.local`; it is ignored by git on purpose.
 4. **Place tasks** (`place.ts`): soonest deadline first, then priority; each
    task takes the earliest time that fits, split into sittings between its
    shortest and longest length.
-5. **Sync to Google**: update the events already there instead of deleting
-   and recreating them, so the calendar does not churn.
+5. **Sync to Google** (when connected): update the events already there
+   instead of deleting and recreating them, so the calendar does not churn.
 
 Worth knowing:
 

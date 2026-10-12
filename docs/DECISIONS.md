@@ -160,6 +160,56 @@ a recommendation only and has not been acted on.
   **local** database with two sample accounts (it refuses to run against
   anything but localhost). Phase 1 turns these into real end-to-end tests.
 
+## Phase 0.5 review fixes (2026-10-12, asked for by Justin)
+
+### P-15. Scheduling no longer waits for a calendar
+
+- **Before:** with no Google Calendar connected, the planner saved tasks
+  but placed nothing, and the screen said so in a big banner, while other
+  lines on the same screen promised the opposite.
+- **Now:** with no calendar, a re-plan treats the user's own hours as free
+  and places tasks right away. Blocks are kept in our database only
+  (`synced: false`, no Google event). Connecting later puts them on the
+  calendar on the next re-plan: the connected path already creates events
+  for blocks that have none. One quiet line says "Connect your calendar so
+  I can avoid your classes and events."
+- **How:** the pure planning step is split out of `runScheduler`
+  (`planSchedule`, `reconcileBlocks` in `src/lib/scheduler/run.ts`) and
+  tested with no database or Google (`src/tests/no-calendar.test.ts`);
+  `scripts/check-no-calendar.mjs` checks it end to end on a local build.
+  `src/tests/copy.test.ts` fails if any screen says scheduling needs a
+  calendar.
+- **Limits:** the 15-minute cron still only re-plans connected accounts
+  (nothing external changes for the others). Without a calendar the plan
+  can land on top of a class; that is what the line asks the user to fix.
+
+### P-16. Schedule layout on phones: the plan first
+
+- Order on phones: now/next, the week, a single "Add something…" field,
+  then tasks. The field opens downward on tap, so it never moves under the
+  thumb (and never slides behind the tab bar). The source order matches
+  the visual order, so keyboard and screen-reader order do too. Wide
+  screens keep the form open beside the week.
+- Momentum shows minutes left and hours planned as its big numeral and
+  greets with the date; Calm keeps sentences. Same facts in both, so the
+  switch rule holds.
+
+### P-17. Hours: one line per day
+
+- "Mon · 9:00 AM – 5:00 PM" (or "Off") per day, opening an inline editor
+  for that day. Replaces rows of day picker + two time pickers that wrapped
+  badly on phones. Same data and API. Save is the main button only when
+  something changed; closing the tab with unsaved hours asks first (moving
+  to another page inside the app does not yet).
+
+### P-18. Logs get an error's name and first line, never the object
+
+- Google client errors carry the request (with the Authorization header);
+  Prisma errors can echo the arguments of the failed query (stored tokens).
+  `src/lib/log.ts` is the only thing logged; a test fails if an error
+  object is passed to `console`. Google's 401 now answers 409 "reconnect"
+  instead of 500.
+
 ## Cross-cutting decisions (brief section 12)
 
 This section is kept identical in both repos until they are merged.

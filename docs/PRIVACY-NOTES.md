@@ -12,7 +12,7 @@ the policy itself.
 | Google access and refresh tokens | To read free/busy times and write task blocks while the user is away | Encrypted at rest (AES-256-GCM, `src/lib/crypto.ts`) |
 | Login sessions | Keeps the user signed in | Deleted on sign-out |
 | Tasks: title, notes, deadline, length, priority, status | The thing being scheduled | |
-| Task blocks: start/end times, Google event ID | To move or remove the events we created | |
+| Task blocks: start/end times, Google event ID | To move or remove the events we created | Without a calendar connected, blocks are kept here only and sent nowhere |
 | "Hours" profiles and their weekly windows | Where tasks may be placed | |
 | Time zone and which calendar to write to | Scheduling math | |
 | Appearance: theme (Calm or Momentum) and accent color | Draws the planner (and later the phone app) the way the user picked | |
@@ -53,8 +53,9 @@ nothing to Google Fonts.
   exist). The database already deletes a user's tasks, blocks, profiles and
   tokens when the user row is deleted; it needs a button, Google token
   revocation, and removal of our events from their calendar.
-- **Error logs may contain task titles** (whole Google error objects are
-  logged). Should log status codes only.
+- ~~Error logs may contain task titles or tokens~~ Fixed 2026-10-12: only
+  an error's name and first line are logged (`src/lib/log.ts`), and a test
+  stops error objects reaching `console`.
 - Google scopes requested: `calendar.readonly` and `calendar.events`. Worth
   checking in Phase 1 whether `calendar.events` plus `calendar.freebusy`
   is enough, which would be narrower.
